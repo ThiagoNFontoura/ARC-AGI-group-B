@@ -1,0 +1,61 @@
+import json
+import os
+from typing import Any
+
+
+def _extract_json_block(text: str) -> str:
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        raise ValueError("Model did not return a JSON object.")
+    return text[start : end + 1]
+
+
+class GemmaHandler:
+    def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
+        self.api_key = api_key or os.getenv("GEMMA_API_KEY")
+        self.model = model or os.getenv("GEMMA_MODEL", "gemma-3-27b-it")
+
+        if not self.api_key:
+            raise ValueError("Missing GEMMA_API_KEY in environment.")
+
+        try:
+            from google import genai  # type: ignore
+        except ImportError as exc:
+            raise ImportError(
+                "google-genai is not installed. Run: pip install -r requirements.txt"
+            ) from exc
+
+        self._client = genai.Client(api_key=self.api_key)
+
+    def _generate_text(self, prompt: str) -> str:
+        response = self._client.models.generate_content(model=self.model, contents=prompt)
+        text = getattr(response, "text", None)
+        if not text:
+            raise ValueError("Model response did not include text.")
+        return text
+
+    def solve(self, prompt: str) -> dict[str, Any]:
+        first_text = self._generate_text(prompt)
+
+        try:
+            raw_json = _extract_json_block(first_text)
+            return json.loads(raw_json)
+        except Exception:
+            retry_prompt = (
+                "Your previous response was invalid. "
+                "Return only valid JSON that matches the required schema.\\n\\n"
+                + prompt
+            )
+            second_text = self._generate_text(retry_prompt)
+            raw_json = _extract_json_block(second_text)
+            return json.loads(raw_json)
