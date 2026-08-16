@@ -9,6 +9,8 @@ Minimal end-to-end Python application that solves ARC-AGI tasks with one shared 
 - `main.py` - CLI entrypoint and orchestration
 - `llm_handler.py` - Gemma API client and JSON parsing
 - `prompt.py` - single prompt builder for all tasks in a folder
+- `task_image_renderer.py` - parallel ARC task-to-image renderer
+- `render_settings.py` - easy style configuration for colors and grid
 
 ## Requirements
 
@@ -53,13 +55,31 @@ Notes:
 ## Run
 
 ```bash
-python main.py <tasks_folder_name>
+python models/main.py <tasks_folder_name>
 ```
 
 Example:
 
 ```bash
-python main.py set_a
+python models/main.py set_a
+```
+
+Generate only task images (parallel):
+
+```bash
+python models/main.py set_a --render-only
+```
+
+Generate task images and then run solver:
+
+```bash
+python models/main.py set_a --render-images
+```
+
+Optional worker count:
+
+```bash
+python models/main.py set_a --render-only --render-workers 8
 ```
 
 ## Output
@@ -74,3 +94,25 @@ Each output file includes:
 - per-task brief logic explanation
 - per-task correctness status (`correct`, `incorrect`, or `unknown`)
 - predicted test outputs
+
+## Task Image Rendering
+
+When rendering is enabled:
+- Images are saved under `data/<tasks_folder_name>/images/<task_name>/`.
+- Each train/test case becomes `*_input.png` and (if present) `*_output.png`.
+- `0` values use background color.
+- Non-zero values use distinct colors.
+- Grid lines are drawn between squares.
+
+Default style:
+- Background: white
+- Grid lines: black
+- Zero value color: same as background
+
+To quickly test different visual strategies, edit values in `render_settings.py`:
+- `BACKGROUND_COLOR`
+- `GRID_COLOR`
+- `ZERO_COLOR`
+- `COLOR_BY_VALUE`
+- `CELL_SIZE`
+- `GRID_LINE_WIDTH`

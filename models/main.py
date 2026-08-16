@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from llm_handler import GemmaHandler
 from prompt import build_prompt
+from task_image_renderer import render_tasks_folder_parallel
 
 
 def _is_arc_task(payload: Any) -> bool:
@@ -88,6 +89,27 @@ def main() -> None:
         "tasks_folder_name",
         help="Folder name under data/ that contains one or more ARC task JSON files.",
     )
+    parser.add_argument(
+        "--render-images",
+        action="store_true",
+        help="Generate task images in parallel under data/<tasks_folder_name>/images.",
+    )
+    parser.add_argument(
+        "--render-only",
+        action="store_true",
+        help="Only generate images and skip the LLM solve step.",
+    )
+    parser.add_argument(
+        "--render-workers",
+        type=int,
+        default=None,
+        help="Max workers for parallel image rendering. Default: Python executor default.",
+    )
+    parser.add_argument(
+        "--images-dir-name",
+        default="images",
+        help="Directory name (inside selected task folder) where rendered images are saved.",
+    )
     args = parser.parse_args()
 
     load_dotenv()
@@ -103,6 +125,22 @@ def main() -> None:
         raise SystemExit(
             "No ARC task files found. Ensure at least one JSON file with train/test arrays exists."
         )
+
+    if args.render_images or args.render_only:
+        images_dir = tasks_dir / args.images_dir_name
+        render_results = render_tasks_folder_parallel(
+            tasks=tasks,
+            output_root=images_dir,
+            max_workers=args.render_workers,
+        )
+        total_rendered = sum(item.get("rendered_images", 0) for item in render_results)
+        total_skipped = sum(item.get("skipped_items", 0) for item in render_results)
+        print(f"Rendered images: {total_rendered}")
+        print(f"Skipped render items: {total_skipped}")
+        print(f"Images folder: {images_dir}")
+
+        if args.render_only:
+            return
 
     prompt_index = _next_prompt_index(tasks_dir)
     prompt = build_prompt(tasks, prompt_index)
