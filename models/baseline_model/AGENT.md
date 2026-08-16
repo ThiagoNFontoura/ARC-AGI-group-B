@@ -11,9 +11,12 @@ This repository is intentionally minimal.
 
 ## Runtime contract
 
-- Run command: `python main.py <tasks_folder_name>`
+- Run command (from the repository root):
+  `python -m models.baseline_model.main <tasks_folder_name>`
 - Input location: `data/<tasks_folder_name>/*.json`
-- Output location: `data/<tasks_folder_name>/<prompt_index>.json`
+- Output location: `data/baseline_output/output.json` (overwritten on each run)
+- The application resolves both `data/` and `.env` from the repository root, so
+  its file paths do not depend on the current working directory.
 
 ## Model contract
 

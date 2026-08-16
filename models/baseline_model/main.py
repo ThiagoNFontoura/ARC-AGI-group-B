@@ -6,17 +6,21 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from llm_handler import GemmaHandler
-from prompt import build_prompt
+from models.baseline_model.llm_handler import GemmaHandler
+from models.baseline_model.prompt import build_prompt
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _is_arc_task(payload: Any) -> bool:
+    """Return whether a decoded payload has ARC train and test arrays."""
     return isinstance(payload, dict) and isinstance(payload.get("train"), list) and isinstance(
         payload.get("test"), list
     )
 
 
 def _load_tasks(tasks_dir: Path) -> tuple[list[dict[str, Any]], list[str]]:
+    """Load valid ARC task files and record files that must be skipped."""
     tasks: list[dict[str, Any]] = []
     skipped: list[str] = []
 
@@ -47,16 +51,8 @@ def _load_tasks(tasks_dir: Path) -> tuple[list[dict[str, Any]], list[str]]:
     return tasks, skipped
 
 
-def _next_prompt_index(tasks_dir: Path) -> int:
-    max_index = 0
-    for file_path in tasks_dir.glob("*.json"):
-        stem = file_path.stem
-        if stem.isdigit():
-            max_index = max(max_index, int(stem))
-    return max_index + 1
-
-
 def _evaluate_correctness(task: dict[str, Any], predicted_outputs: Any) -> tuple[str, str]:
+    """Compare predictions with available test outputs and explain the status."""
     test_cases = task.get("test", [])
 
     has_ground_truth_for_all = True
@@ -83,6 +79,7 @@ def _evaluate_correctness(task: dict[str, Any], predicted_outputs: Any) -> tuple
 
 
 def main() -> None:
+    """Run the solver and save one normalized result file for the task folder."""
     parser = argparse.ArgumentParser(description="Run ARC-AGI solver with a single Gemma prompt.")
     parser.add_argument(
         "tasks_folder_name",
@@ -90,9 +87,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    load_dotenv()
+    load_dotenv(PROJECT_ROOT / ".env")
 
-    data_dir = Path("data")
+    data_dir = PROJECT_ROOT / "data"
     tasks_dir = data_dir / args.tasks_folder_name
 
     if not tasks_dir.exists() or not tasks_dir.is_dir():
@@ -104,7 +101,10 @@ def main() -> None:
             "No ARC task files found. Ensure at least one JSON file with train/test arrays exists."
         )
 
-    prompt_index = _next_prompt_index(tasks_dir)
+    output_dir = PROJECT_ROOT / "data" / "baseline_output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    prompt_index = 1
     prompt = build_prompt(tasks, prompt_index)
 
     model_name = "gemma-3-27b-it"
@@ -166,7 +166,7 @@ def main() -> None:
         "tasks": output_tasks,
     }
 
-    output_path = tasks_dir / f"{prompt_index}.json"
+    output_path = output_dir / "output.json"
     output_path.write_text(json.dumps(output, indent=2), encoding="utf-8")
 
     print(f"Processed tasks: {len(tasks)}")

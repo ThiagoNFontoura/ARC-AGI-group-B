@@ -4,8 +4,8 @@ Minimal end-to-end Python application that solves ARC-AGI tasks with one shared 
 
 ## Architecture
 
-- `data/` - contains task folders with ARC JSON files
-- `.env` - contains `GEMMA_API_KEY`
+- `../../data/` - repository-level task folders with ARC JSON files
+- `../../.env` - repository-level file containing `GEMMA_API_KEY`
 - `main.py` - CLI entrypoint and orchestration
 - `llm_handler.py` - Gemma API client and JSON parsing
 - `prompt.py` - single prompt builder for all tasks in a folder
@@ -53,20 +53,24 @@ Notes:
 ## Run
 
 ```bash
-python main.py <tasks_folder_name>
+python -m models.baseline_model.main <tasks_folder_name>
 ```
 
 Example:
 
 ```bash
-python main.py set_a
+python -m models.baseline_model.main set_a
 ```
+
+Run these commands from the repository root. The application locates `data/`
+and `.env` relative to its own source file, so those paths remain stable even
+if the command is launched from a different working directory.
 
 ## Output
 
-A single JSON file is written inside the same selected folder:
+A single JSON file is written to `data/baseline_output/`:
 
-- `1.json`, `2.json`, `3.json`, ... (sequential prompt index)
+- `output.json` (overwritten on each run)
 
 Each output file includes:
 - prompt index

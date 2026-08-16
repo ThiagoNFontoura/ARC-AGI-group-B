@@ -4,6 +4,7 @@ from typing import Any
 
 
 def _extract_json_block(text: str) -> str:
+    """Extract the outer JSON object from plain or fenced model output."""
     text = text.strip()
     if text.startswith("```"):
         lines = text.splitlines()
@@ -22,6 +23,7 @@ def _extract_json_block(text: str) -> str:
 
 class GemmaHandler:
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
+        """Configure a Gemini client using supplied or environment credentials."""
         self.api_key = api_key or os.getenv("GEMMA_API_KEY")
         self.model = model or os.getenv("GEMMA_MODEL", "gemma-3-27b-it")
 
@@ -38,6 +40,7 @@ class GemmaHandler:
         self._client = genai.Client(api_key=self.api_key)
 
     def _generate_text(self, prompt: str) -> str:
+        """Send a prompt to the configured model and return its text response."""
         response = self._client.models.generate_content(model=self.model, contents=prompt)
         text = getattr(response, "text", None)
         if not text:
@@ -45,6 +48,7 @@ class GemmaHandler:
         return text
 
     def solve(self, prompt: str) -> dict[str, Any]:
+        """Generate, parse, and if necessary retry a structured task solution."""
         first_text = self._generate_text(prompt)
 
         try:

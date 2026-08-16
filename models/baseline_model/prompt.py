@@ -3,7 +3,11 @@ from typing import Any
 
 
 def build_prompt(tasks: list[dict[str, Any]], prompt_index: int) -> str:
-    """Build one shared prompt that asks for predictions for all tasks at once."""
+    """Build the indexed shared LLM prompt for predictions across all ARC tasks.
+
+    The prompt embeds each task's training and test examples and specifies the
+    JSON response schema that the solver must return.
+    """
     compact_tasks = []
     for task in tasks:
         compact_tasks.append(
