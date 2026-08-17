@@ -4,7 +4,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
+        return False
 
 from models.baseline_model.llm_handler import GemmaHandler
 from models.baseline_model.prompt import build_prompt
@@ -104,29 +108,38 @@ def main() -> None:
     output_dir = PROJECT_ROOT / "data" / "baseline_output"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    prompt_index = 1
-    prompt = build_prompt(tasks, prompt_index)
-
     model_name = "gemma-3-27b-it"
-    llm_error: str | None = None
-    model_result: dict[str, Any] = {"tasks": []}
-
+    by_name: dict[str, dict[str, Any]] = {}
+    task_errors_by_name: dict[str, str] = {}
     try:
         handler = GemmaHandler()
         model_name = handler.model
-        model_result = handler.solve(prompt)
-    except Exception as exc:
-        llm_error = str(exc)
 
-    returned_tasks = model_result.get("tasks", []) if isinstance(model_result, dict) else []
-    by_name: dict[str, dict[str, Any]] = {}
-    if isinstance(returned_tasks, list):
-        for item in returned_tasks:
-            if not isinstance(item, dict):
-                continue
-            name = item.get("task_name")
-            if isinstance(name, str) and name.strip():
-                by_name[name] = item
+        for prompt_index, task in enumerate(tasks, start=1):
+            prompt = build_prompt([task], prompt_index=prompt_index)
+            try:
+                model_result = handler.solve(prompt)
+                returned_tasks = model_result.get("tasks", []) if isinstance(model_result, dict) else []
+                found = False
+                if isinstance(returned_tasks, list):
+                    for item in returned_tasks:
+                        if not isinstance(item, dict):
+                            continue
+                        name = item.get("task_name")
+                        if isinstance(name, str) and name.strip() == task["task_name"]:
+                            by_name[name] = item
+                            found = True
+                            break
+                if not found and isinstance(returned_tasks, list) and returned_tasks:
+                    first_item = returned_tasks[0]
+                    if isinstance(first_item, dict):
+                        by_name[task["task_name"]] = first_item
+            except Exception as exc:
+                task_errors_by_name[task["task_name"]] = f"LLM task call failed: {exc}"
+    except Exception as exc:
+        error_text = f"LLM setup failed: {exc}"
+        for task in tasks:
+            task_errors_by_name[task["task_name"]] = error_text
 
     output_tasks: list[dict[str, Any]] = []
     for task in tasks:
@@ -137,8 +150,8 @@ def main() -> None:
 
         predicted_outputs = model_task.get("predicted_test_outputs", [])
 
-        if llm_error:
-            status, details = "unknown", f"LLM call failed: {llm_error}"
+        if task["task_name"] in task_errors_by_name:
+            status, details = "unknown", task_errors_by_name[task["task_name"]]
         elif task["task_name"] not in by_name:
             status, details = "unknown", "Task missing in model response."
         else:
@@ -158,7 +171,8 @@ def main() -> None:
         )
 
     output = {
-        "prompt_index": prompt_index,
+        "prompt_index": 1,
+        "prompt_chunks": len(tasks),
         "tasks_folder": args.tasks_folder_name,
         "model": model_name,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),

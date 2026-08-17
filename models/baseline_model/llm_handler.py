@@ -48,18 +48,7 @@ class GemmaHandler:
         return text
 
     def solve(self, prompt: str) -> dict[str, Any]:
-        """Generate, parse, and if necessary retry a structured task solution."""
-        first_text = self._generate_text(prompt)
-
-        try:
-            raw_json = _extract_json_block(first_text)
-            return json.loads(raw_json)
-        except Exception:
-            retry_prompt = (
-                "Your previous response was invalid. "
-                "Return only valid JSON that matches the required schema.\\n\\n"
-                + prompt
-            )
-            second_text = self._generate_text(retry_prompt)
-            raw_json = _extract_json_block(second_text)
-            return json.loads(raw_json)
+        """Generate and parse a structured task solution with a single model call."""
+        text = self._generate_text(prompt)
+        raw_json = _extract_json_block(text)
+        return json.loads(raw_json)
