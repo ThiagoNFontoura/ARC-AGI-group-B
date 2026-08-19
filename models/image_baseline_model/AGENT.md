@@ -11,7 +11,7 @@ This repository is intentionally minimal.
 
 ## Runtime contract
 
-- Run command: `python main.py <tasks_folder_name>`
+- Run command from the repository root: `python -m models.image_baseline_model.main <tasks_folder_name>`
 - Input location: `data/<tasks_folder_name>/*.json`
 - Output location: `data/<tasks_folder_name>/<prompt_index>.json`
 

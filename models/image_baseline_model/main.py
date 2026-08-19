@@ -6,9 +6,9 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from llm_handler import GemmaHandler
-from prompt import build_prompt
-from task_image_renderer import render_tasks_folder_parallel
+from models.image_baseline_model.llm_handler import GemmaHandler
+from models.image_baseline_model.prompt import build_prompt
+from models.image_baseline_model.task_image_renderer import render_tasks_folder_parallel
 
 
 def _is_arc_task(payload: Any) -> bool:

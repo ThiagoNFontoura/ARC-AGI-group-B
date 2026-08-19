@@ -55,31 +55,33 @@ Notes:
 ## Run
 
 ```bash
-python models/main.py <tasks_folder_name>
+python -m models.image_baseline_model.main <tasks_folder_name>
 ```
 
 Example:
 
 ```bash
-python models/main.py set_a
+python -m models.image_baseline_model.main set_a
 ```
+
+Run these commands from the repository root.
 
 Generate only task images (parallel):
 
 ```bash
-python models/main.py set_a --render-only
+python -m models.image_baseline_model.main set_a --render-only
 ```
 
 Generate task images and then run solver:
 
 ```bash
-python models/main.py set_a --render-images
+python -m models.image_baseline_model.main set_a --render-images
 ```
 
 Optional worker count:
 
 ```bash
-python models/main.py set_a --render-only --render-workers 8
+python -m models.image_baseline_model.main set_a --render-only --render-workers 8
 ```
 
 ## Output

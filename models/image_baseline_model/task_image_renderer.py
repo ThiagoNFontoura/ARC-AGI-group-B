@@ -9,7 +9,7 @@ from typing import Any
 
 from PIL import Image, ImageDraw
 
-import render_settings
+from . import render_settings
 
 RGB = tuple[int, int, int]
 
