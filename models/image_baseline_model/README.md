@@ -78,6 +78,10 @@ Generate task images and then run solver:
 python -m models.image_baseline_model.main set_a --render-images
 ```
 
+With `--render-images`, the program first solves every task individually using JSON
+data. It then renders the images and solves every task individually using its images.
+The second pass starts only after the JSON pass has completed.
+
 Optional worker count:
 
 ```bash
@@ -86,16 +90,22 @@ python -m models.image_baseline_model.main set_a --render-only --render-workers 
 
 ## Output
 
-A single JSON file is written inside the same selected folder:
+A compact JSON report is written inside the same selected folder for the JSON pass:
 
-- `1.json`, `2.json`, `3.json`, ... (sequential prompt index)
+- `1-json.json`, `2-json.json`, `3-json.json`, ... (sequential prompt index)
+
+When `--render-images` is used, a second report is also written:
+
+- `1-image.json`, `2-image.json`, `3-image.json`, ...
 
 Each output file includes:
 - prompt index
 - all task names
 - per-task brief logic explanation
 - per-task correctness status (`correct`, `incorrect`, or `unknown`)
-- predicted test outputs
+
+The predicted grids are used internally to calculate correctness but are not written
+to the reports, keeping them readable.
 
 ## Task Image Rendering
 

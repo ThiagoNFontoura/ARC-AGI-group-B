@@ -6,7 +6,11 @@
 
 08-16-2026
 - Baseline model with gemma was continued
+- First image generator created
 
 08-17-2026
 - Baseline model with gemma compleated
 - Output Generated
+
+08-19-2026
+- 

@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 from typing import Any
 
 
@@ -44,12 +45,18 @@ class GemmaHandler:
             raise ValueError("Model response did not include text.")
         return text
 
+    def _parse_response(self, text: str) -> dict[str, Any]:
+        raw_json = _extract_json_block(text)
+        result = json.loads(raw_json)
+        if not isinstance(result, dict):
+            raise ValueError("Model response must be a JSON object.")
+        return result
+
     def solve(self, prompt: str) -> dict[str, Any]:
         first_text = self._generate_text(prompt)
 
         try:
-            raw_json = _extract_json_block(first_text)
-            return json.loads(raw_json)
+            return self._parse_response(first_text)
         except Exception:
             retry_prompt = (
                 "Your previous response was invalid. "
@@ -57,5 +64,41 @@ class GemmaHandler:
                 + prompt
             )
             second_text = self._generate_text(retry_prompt)
-            raw_json = _extract_json_block(second_text)
-            return json.loads(raw_json)
+            return self._parse_response(second_text)
+
+    def solve_with_images(
+        self,
+        prompt: str,
+        labeled_image_paths: list[tuple[str, Path]],
+    ) -> dict[str, Any]:
+        from google.genai import types  # type: ignore
+
+        contents: list[Any] = [prompt]
+        for label, image_path in labeled_image_paths:
+            contents.append(label)
+            contents.append(
+                types.Part.from_bytes(data=image_path.read_bytes(), mime_type="image/png")
+            )
+
+        first_response = self._client.models.generate_content(
+            model=self.model,
+            contents=contents,
+        )
+        first_text = getattr(first_response, "text", None)
+        if not first_text:
+            raise ValueError("Model response did not include text.")
+
+        try:
+            return self._parse_response(first_text)
+        except Exception:
+            retry_contents = [
+                "Your previous response was invalid. Return only valid JSON that matches the required schema."
+            ] + contents
+            retry_response = self._client.models.generate_content(
+                model=self.model,
+                contents=retry_contents,
+            )
+            retry_text = getattr(retry_response, "text", None)
+            if not retry_text:
+                raise ValueError("Model retry response did not include text.")
+            return self._parse_response(retry_text)

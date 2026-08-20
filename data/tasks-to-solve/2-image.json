@@ -1,0 +1,99 @@
+{
+  "prompt_index": 2,
+  "tasks_folder": "tasks-to-solve",
+  "model": "gemma-4-31b-it",
+  "generated_at_utc": "2026-08-19T23:45:34.004709+00:00",
+  "skipped_files": [],
+  "tasks": [
+    {
+      "task_name": "00d62c1b",
+      "logic_explanation": "Fill all white regions that are completely enclosed by green cells with red.",
+      "correctness_result": {
+        "status": "incorrect",
+        "details": "Predicted outputs differ from ground truth."
+      },
+      "source_file": "00d62c1b.json"
+    },
+    {
+      "task_name": "0a938d79",
+      "logic_explanation": "If input pixels are on the top and bottom edges, fill columns alternating with the two colors, using the distance between the pixels as the period. If input pixels are on the left and right edges, fill rows alternating with the two colors, using the distance between the pixels as the period.",
+      "correctness_result": {
+        "status": "incorrect",
+        "details": "Predicted outputs differ from ground truth."
+      },
+      "source_file": "0a938d79.json"
+    },
+    {
+      "task_name": "0b148d64",
+      "logic_explanation": "The output grid's color is the color that appears in only one of the four input quadrants. The output grid itself is the result of a XOR operation among the three quadrants sharing the common color, then colored with the unique color.",
+      "correctness_result": {
+        "status": "incorrect",
+        "details": "Predicted outputs differ from ground truth."
+      },
+      "source_file": "0b148d64.json"
+    },
+    {
+      "task_name": "0ca9ddb6",
+      "logic_explanation": "Orange cells (7) are expanded into a red (2) corner pattern (3x3 square corners). Blue cells (1) are expanded into a pink (6) cross pattern (up, down, left, right). Other colored cells remain unchanged.",
+      "correctness_result": {
+        "status": "incorrect",
+        "details": "Predicted outputs differ from ground truth."
+      },
+      "source_file": "0ca9ddb6.json"
+    },
+    {
+      "task_name": "0d3d703e",
+      "logic_explanation": "Each input color in the 3x3 grid is mapped to a specific output color: Grey (8) maps to Yellow (4), Blue (1) maps to Purple (6), and Green (3) maps to Red (2).",
+      "correctness_result": {
+        "status": "incorrect",
+        "details": "Predicted outputs differ from ground truth."
+      },
+      "source_file": "0d3d703e.json"
+    },
+    {
+      "task_name": "0dfd9992",
+      "logic_explanation": "The grid is a periodic tiling. Rows follow a vertical sequence (R0, R1, R2, R1, R0, R0, repeat every 6 rows). Each row has its own horizontal period: R0 (period 7: Y,G,P,G,G,P,G), R1 (period 8: G,O,Br,O,O,Br,O,O), and R2 (period 2: O,B).",
+      "correctness_result": {
+        "status": "incorrect",
+        "details": "Predicted outputs differ from ground truth."
+      },
+      "source_file": "0dfd9992.json"
+    },
+    {
+      "task_name": "0e206a2e",
+      "logic_explanation": "Identify source shapes (blobs) and anchor pixels (isolated colored pixels). Use the dominant color of each source shape as a filler to connect its associated set of anchor pixels using the most direct Manhattan paths.",
+      "correctness_result": {
+        "status": "incorrect",
+        "details": "Predicted outputs differ from ground truth."
+      },
+      "source_file": "0e206a2e.json"
+    },
+    {
+      "task_name": "1a07d186",
+      "logic_explanation": "For each single pixel of color C, if there's a line of the same color C, it is moved to the cell immediately adjacent to the line in the same row/column, maintaining its side (left/right for vertical lines, above/below for horizontal lines). If no line of color C exists, the pixel is removed.",
+      "correctness_result": {
+        "status": "incorrect",
+        "details": "Predicted outputs differ from ground truth."
+      },
+      "source_file": "1a07d186.json"
+    },
+    {
+      "task_name": "1b2d62fb",
+      "logic_explanation": "For a 5x7 input, the output is a 5x3 grid where a cell (r, c) is grey if both corresponding cells in the input's left and right 5x3 sections (columns c and c+4) are white. Otherwise, the output cell is white.",
+      "correctness_result": {
+        "status": "correct",
+        "details": "All predicted test outputs match ground truth."
+      },
+      "source_file": "1b2d62fb.json"
+    },
+    {
+      "task_name": "1b60fb0c",
+      "logic_explanation": "The orange shape is a mirror reflection of the blue shape across its own central vertical axis. Only the mirrored pixels that do not overlap with the original blue shape are colored orange.",
+      "correctness_result": {
+        "status": "incorrect",
+        "details": "Predicted outputs differ from ground truth."
+      },
+      "source_file": "1b60fb0c.json"
+    }
+  ]
+}
