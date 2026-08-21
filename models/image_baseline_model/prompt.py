@@ -2,17 +2,25 @@ import json
 from typing import Any
 
 
+def _strip_test_outputs(task: dict[str, Any]) -> dict[str, Any]:
+    sanitized_test: list[Any] = []
+    for case in task.get("test", []):
+        if isinstance(case, dict):
+            case_copy = {k: v for k, v in case.items() if k != "output"}
+            sanitized_test.append(case_copy)
+        else:
+            sanitized_test.append(case)
+
+    return {
+        "task_name": task["task_name"],
+        "train": task.get("train", []),
+        "test": sanitized_test,
+    }
+
+
 def build_prompt(tasks: list[dict[str, Any]], prompt_index: int) -> str:
     """Build one shared prompt that asks for predictions for all tasks at once."""
-    compact_tasks = []
-    for task in tasks:
-        compact_tasks.append(
-            {
-                "task_name": task["task_name"],
-                "train": task.get("train", []),
-                "test": task.get("test", []),
-            }
-        )
+    compact_tasks = [_strip_test_outputs(task) for task in tasks]
 
     tasks_json = json.dumps(compact_tasks, separators=(",", ":"))
 
@@ -66,4 +74,59 @@ def build_image_prompt(tasks: list[dict[str, Any]], prompt_index: int) -> str:
         "4) Do not include markdown or extra text.\n\n"
         f"Prompt index: {prompt_index}.\n"
         f"Tasks in attachment order: {json.dumps(task_names)}"
+    )
+
+
+def build_image_validation_prompt(
+    task_name: str,
+    predicted_test_outputs: Any,
+    ground_truth_test_outputs: Any,
+) -> str:
+    return (
+        "You are validating ARC-AGI predicted test outputs against ground truth. "
+        "Use attached images and provided grids to compare and correct results. "
+        "Return STRICT JSON only.\n\n"
+        "Required JSON schema:\n"
+        "{\n"
+        "  \"task_name\": \"string\",\n"
+        "  \"validation_status\": \"correct|incorrect|unknown\",\n"
+        "  \"notes\": \"brief explanation\",\n"
+        "  \"corrected_test_outputs\": [grid, grid, ...]\n"
+        "}\n\n"
+        "Rules:\n"
+        "1) If any mismatch exists, set validation_status to incorrect.\n"
+        "2) corrected_test_outputs must be the final correct outputs.\n"
+        "3) Keep notes concise (1-3 short sentences).\n"
+        "4) Do not include markdown or extra text.\n\n"
+        f"Task: {task_name}.\n"
+        f"Predicted test outputs (raw): {json.dumps(predicted_test_outputs, separators=(",", ":"))}\n"
+        f"Ground truth test outputs (raw): {json.dumps(ground_truth_test_outputs, separators=(",", ":"))}"
+    )
+
+
+def build_json_validation_prompt(
+    task_name: str,
+    predicted_test_outputs: Any,
+    ground_truth_test_outputs: Any,
+) -> str:
+    return (
+        "You are validating ARC-AGI predicted test outputs against ground truth. "
+        "Return STRICT JSON only.\n\n"
+        "Required JSON schema:\n"
+        "{\n"
+        "  \"task_name\": \"string\",\n"
+        "  \"validation_status\": \"correct|incorrect|unknown\",\n"
+        "  \"notes\": \"brief explanation\",\n"
+        "  \"corrected_test_outputs\": [grid, grid, ...]\n"
+        "}\n\n"
+        "Rules:\n"
+        "1) If prediction equals ground truth for all test cases, use correct.\n"
+        "2) If any mismatch exists, use incorrect.\n"
+        "3) If inputs are insufficient, use unknown.\n"
+        "4) corrected_test_outputs must contain final correct outputs when available.\n"
+        "5) Keep notes concise (1-3 short sentences).\n"
+        "6) Do not include markdown or extra text.\n\n"
+        f"Task: {task_name}.\n"
+        f"Predicted test outputs (raw): {json.dumps(predicted_test_outputs, separators=(",", ":"))}\n"
+        f"Ground truth test outputs (raw): {json.dumps(ground_truth_test_outputs, separators=(",", ":"))}"
     )

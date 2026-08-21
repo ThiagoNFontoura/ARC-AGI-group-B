@@ -24,7 +24,7 @@ def _extract_json_block(text: str) -> str:
 class GemmaHandler:
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
         self.api_key = api_key or os.getenv("GEMMA_API_KEY")
-        self.model = model or os.getenv("GEMMA_MODEL", "gemma-3-27b-it")
+        self.model = model or os.getenv("GEMMA_MODEL", "gemini-3.5-flash-lite")
 
         if not self.api_key:
             raise ValueError("Missing GEMMA_API_KEY in environment.")
@@ -38,8 +38,8 @@ class GemmaHandler:
 
         self._client = genai.Client(api_key=self.api_key)
 
-    def _generate_text(self, prompt: str) -> str:
-        response = self._client.models.generate_content(model=self.model, contents=prompt)
+    def _generate_text(self, prompt: str, model: str | None = None) -> str:
+        response = self._client.models.generate_content(model=model or self.model, contents=prompt)
         text = getattr(response, "text", None)
         if not text:
             raise ValueError("Model response did not include text.")
@@ -52,8 +52,8 @@ class GemmaHandler:
             raise ValueError("Model response must be a JSON object.")
         return result
 
-    def solve(self, prompt: str) -> dict[str, Any]:
-        first_text = self._generate_text(prompt)
+    def solve(self, prompt: str, model: str | None = None) -> dict[str, Any]:
+        first_text = self._generate_text(prompt, model=model)
 
         try:
             return self._parse_response(first_text)
@@ -63,13 +63,14 @@ class GemmaHandler:
                 "Return only valid JSON that matches the required schema.\\n\\n"
                 + prompt
             )
-            second_text = self._generate_text(retry_prompt)
+            second_text = self._generate_text(retry_prompt, model=model)
             return self._parse_response(second_text)
 
     def solve_with_images(
         self,
         prompt: str,
         labeled_image_paths: list[tuple[str, Path]],
+        model: str | None = None,
     ) -> dict[str, Any]:
         from google.genai import types  # type: ignore
 
@@ -81,7 +82,7 @@ class GemmaHandler:
             )
 
         first_response = self._client.models.generate_content(
-            model=self.model,
+            model=model or self.model,
             contents=contents,
         )
         first_text = getattr(first_response, "text", None)
@@ -95,7 +96,7 @@ class GemmaHandler:
                 "Your previous response was invalid. Return only valid JSON that matches the required schema."
             ] + contents
             retry_response = self._client.models.generate_content(
-                model=self.model,
+                model=model or self.model,
                 contents=retry_contents,
             )
             retry_text = getattr(retry_response, "text", None)

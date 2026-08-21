@@ -25,7 +25,7 @@ class GemmaHandler:
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
         """Configure a Gemini client using supplied or environment credentials."""
         self.api_key = api_key or os.getenv("GEMMA_API_KEY")
-        self.model = model or os.getenv("GEMMA_MODEL", "gemma-3-27b-it")
+        self.model = model or os.getenv("GEMMA_MODEL", "gemini-3.5-flash-lite")
 
         if not self.api_key:
             raise ValueError("Missing GEMMA_API_KEY in environment.")
