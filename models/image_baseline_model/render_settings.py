@@ -12,17 +12,18 @@ ZERO_COLOR = BACKGROUND_COLOR
 
 # Known ARC values. Values not listed here are auto-generated with stable colors.
 COLOR_BY_VALUE = {
-    1: (31, 119, 180),
-    2: (255, 127, 14),
-    3: (44, 160, 44),
-    4: (214, 39, 40),
-    5: (148, 103, 189),
-    6: (140, 86, 75),
-    7: (227, 119, 194),
-    8: (127, 127, 127),
-    9: (188, 189, 34),
+    0: (255,255,255),
+    1: (30, 147, 255),
+    2: (249, 60, 49),
+    3: (78, 234, 58),
+    4: (255,216,77),
+    5: (153,153,153),
+    6: (229,58,163),
+    7: (255,138,31),
+    8: (79,227,240),
+    9: (146,18,49),
 }
 
-CELL_SIZE = 1
-GRID_LINE_WIDTH = 0
+CELL_SIZE = 10
+GRID_LINE_WIDTH = 1
 IMAGE_MARGIN = 0
