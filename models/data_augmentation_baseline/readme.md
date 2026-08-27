@@ -61,6 +61,20 @@ The winning output is selected by:
 
 This is an inference-time ensemble, not full Test-Time Training. It does not train LoRA adapters, perform leave-one-out training, use color permutations, or use model log-probabilities. Those extensions can be added behind the strategy boundary later.
 
+## Configuration
+
+Create or edit the `.env` file at the repository root to configure your Google Gemini credentials and model:
+
+```env
+GEMMA_API_KEY=your_api_key_here
+GEMMA_MODEL=gemini-3.1-flash-lite
+```
+
+Recommended models:
+- `gemini-3.1-flash-lite` (High daily quota: 500 RPD, 15 RPM)
+- `gemini-2.5-flash`
+- `gemini-2.5-flash-lite`
+
 ## Run
 
 From the repository root:
@@ -69,21 +83,44 @@ From the repository root:
 python -m models.data_augmentation_baseline.main <tasks_folder_name>
 ```
 
-Choose a smaller set of views for a cheaper run:
+### Example: Running both Baseline and Data Augmentation on `20_training`
+
+To run both modes and generate the comparison report on `data/20_training`:
 
 ```powershell
-python -m models.data_augmentation_baseline.main <tasks_folder_name> --transforms identity transpose
+python -m models.data_augmentation_baseline.main 20_training --run-both
 ```
 
-Available transformations are `identity`, `flip_horizontal`, `flip_vertical`, and `transpose`.
+Choose a smaller set of views for a cheaper/faster run:
 
-The augmented runner writes to:
+```powershell
+python -m models.data_augmentation_baseline.main 20_training --transforms identity transpose --run-both
+```
+
+The runner defaults to only running the **Augmented Phase (With Data Augmentation)** when `--run-both` is omitted.
+
+When using the `--run-both` flag, it automatically executes two sequential phases:
+
+1. **Baseline Phase (No Data Augmentation)**: Runs using only the `identity` transform.
+2. **Augmented Phase (With Data Augmentation)**: Runs using the specified `--transforms` (or the default four views: `identity`, `flip_horizontal`, `flip_vertical`, `transpose`).
+
+The results are saved into the root `output/` directory (created if it doesn't exist). For `20_training`, running with `--run-both` writes:
 
 ```text
-data/data_augmentation_output/output.json
+output/20_training_baseline_output.json
+output/20_training_augmented_output.json
+output/20_training_comparison_report.json
 ```
+(If `--run-both` is omitted, only the `20_training_augmented_output.json` file is produced).
 
-The baseline output is not overwritten. With the default four views, the run makes up to four model calls per task, so API cost and latency are also approximately multiplied by four.
+Additionally, when `--run-both` finishes, a concise comparison scorecard is printed directly to the terminal showing:
+- Accuracy Delta ($+X\%$) and Net Gained tasks.
+- Average Pixel Accuracy Delta and Shape Match Rate Delta.
+- List of tasks fixed by data augmentation (Baseline failed $\to$ Augmented succeeded).
+- List of regressed tasks (Baseline succeeded $\to$ Augmented failed).
+- Counts of `Both Correct` and `Both Incorrect`.
+
+With `--run-both` and the default four views, the run makes a total of five model calls per task (1 baseline + 4 augmented), so API cost and latency are higher.
 
 ## Module layout
 
@@ -138,6 +175,68 @@ result = augmented_solver.solve_task(task, prompt_index=1)
 ```
 
 The replacement model must return a dictionary containing a `tasks` list. Each task should contain `task_name` and `predicted_test_outputs`, matching the baseline response contract.
+
+## Execution Output & Ensemble Telemetry
+
+The output JSON file includes top-level run statistics as well as granular ensemble, telemetry, and ARC-specific metrics for every evaluated task.
+
+### Top-Level `summary`
+Aggregates overall task accuracy, sub-pixel correctness, shape matching, latency, token usage, and per-transformation effectiveness:
+
+```json
+"summary": {
+  "total_tasks": 10,
+  "correct_tasks": 7,
+  "incorrect_tasks": 3,
+  "unknown_tasks": 0,
+  "accuracy_percentage": 70.0,
+  "average_pixel_accuracy_percentage": 89.45,
+  "shape_match_percentage": 90.0,
+  "color_preservation_percentage": 100.0,
+  "total_duration_seconds": 24.8,
+  "token_usage": {
+    "prompt_tokens": 12450,
+    "candidates_tokens": 3120,
+    "total_tokens": 15570
+  },
+  "consensus_distribution": {
+    "unanimous": 4,
+    "majority": 2,
+    "plurality": 1
+  },
+  "transforms_performance": {
+    "identity": {
+      "attempted": 10,
+      "correct": 6,
+      "incorrect": 4,
+      "accuracy_percentage": 60.0,
+      "average_pixel_accuracy_percentage": 82.1,
+      "times_voted_winner": 7
+    },
+    "transpose": {
+      "attempted": 10,
+      "correct": 7,
+      "incorrect": 3,
+      "accuracy_percentage": 70.0,
+      "average_pixel_accuracy_percentage": 89.5,
+      "times_voted_winner": 8
+    }
+  }
+}
+```
+
+### Per-Task Metrics & `arc_metrics`
+Each task entry includes:
+- **`arc_metrics`**:
+  - `shape_match`: Boolean indicating whether predicted grid dimensions match ground truth for all test cases.
+  - `pixel_accuracy_percentage`: Percentage of cells matching ground truth across all test cases.
+  - `test_case_details`: Per-test-case breakdown with shapes, total pixels, matching pixels, and exact match flags.
+  - `color_evaluation`: Palette validation comparing predicted colors against expected ground truth and context colors (flags hallucinated/unseen colors).
+- **`ensemble_details`**:
+  - **`summary`**: Consensus type, vote counts/percentages, winning transforms, and unique candidate count.
+  - **`telemetry`**: Total task latency in seconds and prompt/candidate token consumption.
+  - **`voting_distribution`**: Ranked distribution of unique predictions, their vote counts/percentages, and which transforms voted for each.
+  - **`individual_views`**: The full log of each transform view, including its latency, token usage, converted output, raw model output, explanation, and individual `arc_metrics`.
 
 ## Design limitations
 

@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from typing import Any
 
 
@@ -25,7 +26,7 @@ class GemmaHandler:
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
         """Configure a Gemini client using supplied or environment credentials."""
         self.api_key = api_key or os.getenv("GEMMA_API_KEY")
-        self.model = model or os.getenv("GEMMA_MODEL", "gemini-3.5-flash-lite")
+        self.model = model or os.getenv("GEMMA_MODEL", "gemini-3.1-flash-lite")
 
         if not self.api_key:
             raise ValueError("Missing GEMMA_API_KEY in environment.")
@@ -39,16 +40,52 @@ class GemmaHandler:
 
         self._client = genai.Client(api_key=self.api_key)
 
-    def _generate_text(self, prompt: str) -> str:
-        """Send a prompt to the configured model and return its text response."""
-        response = self._client.models.generate_content(model=self.model, contents=prompt)
-        text = getattr(response, "text", None)
-        if not text:
-            raise ValueError("Model response did not include text.")
-        return text
+    def _generate_text_and_metadata(
+        self, prompt: str, max_retries: int = 4
+    ) -> tuple[str, dict[str, Any]]:
+        """Send a prompt to the configured model with retry on 503/429/temporary errors."""
+        last_exception: Exception | None = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = self._client.models.generate_content(
+                    model=self.model, contents=prompt
+                )
+                text = getattr(response, "text", None)
+                if not text:
+                    raise ValueError("Model response did not include text.")
+
+                usage = getattr(response, "usage_metadata", None)
+                metadata: dict[str, Any] = {}
+                if usage is not None:
+                    metadata = {
+                        "prompt_tokens": getattr(usage, "prompt_token_count", None),
+                        "candidates_tokens": getattr(usage, "candidates_token_count", None),
+                        "total_tokens": getattr(usage, "total_token_count", None),
+                    }
+                return text, metadata
+            except Exception as exc:
+                last_exception = exc
+                err_str = str(exc)
+                # Check for high demand / transient errors
+                if attempt < max_retries and any(
+                    code in err_str
+                    for code in ("503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED", "demand")
+                ):
+                    wait_time = 2**attempt
+                    print(
+                        f"    [API Busy: 503/429] Retrying in {wait_time}s (attempt {attempt}/{max_retries})..."
+                    )
+                    time.sleep(wait_time)
+                else:
+                    raise exc
+
+        raise last_exception or RuntimeError("Failed to generate content after retries.")
 
     def solve(self, prompt: str) -> dict[str, Any]:
         """Generate and parse a structured task solution with a single model call."""
-        text = self._generate_text(prompt)
+        text, metadata = self._generate_text_and_metadata(prompt)
         raw_json = _extract_json_block(text)
-        return json.loads(raw_json)
+        parsed = json.loads(raw_json)
+        if isinstance(parsed, dict) and metadata:
+            parsed["_usage_metadata"] = metadata
+        return parsed
