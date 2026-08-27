@@ -12,5 +12,9 @@
 - Baseline model with gemma compleated
 - Output Generated
 
-08-19-2026
+08-27-2026
+- Model with data augmentation finished and tested
+- Baseline model and model with augmentation executed and comparison generated
+
+08-28-2026
 - 
