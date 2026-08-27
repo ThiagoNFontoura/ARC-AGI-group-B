@@ -1,10 +1,15 @@
 import argparse
 import json
 import os
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
     from dotenv import load_dotenv
@@ -15,7 +20,6 @@ except ImportError:
 from models.baseline_model.llm_handler import GemmaHandler
 from models.task_gen.prompt import build_prompt
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "task_gen_config.json"
 
 
@@ -27,7 +31,7 @@ def _is_arc_task(payload: Any) -> bool:
 
 def _load_config(config_path: Path) -> dict[str, Any]:
     if not config_path.exists():
-        return {"generated_examples": 2, "output_dir": "data/task-gen"}
+        return {"generated_examples": 2, "output_dir": "output/task-gen"}
     payload = json.loads(config_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError(f"Configuration must be a JSON object: {config_path}")
@@ -97,7 +101,10 @@ def _is_transient_api_error(error: Exception) -> bool:
 
 
 def _solve_with_retry(
-    handler: GemmaHandler, prompt: str, retry_attempts: int, retry_delay_seconds: float
+    handler: GemmaHandler,
+    prompt: str,
+    retry_attempts: int,
+    retry_delay_seconds: float,
 ) -> dict[str, Any]:
     for attempt in range(retry_attempts + 1):
         try:
@@ -147,12 +154,11 @@ def main() -> None:
     if not isinstance(retry_delay_seconds, (int, float)) or retry_delay_seconds < 0:
         raise SystemExit("transient_retry_delay_seconds must be a non-negative number")
 
-    output_dir_value = config.get("output_dir", "data/task-gen")
+    output_dir_value = config.get("output_dir", "output/task-gen")
     output_dir = Path(output_dir_value)
     if not output_dir.is_absolute():
         output_dir = PROJECT_ROOT / output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
-
     handler = GemmaHandler(model=os.getenv("TASK_GEN_MODEL") or config.get("model"))
     for path in paths:
         task = _load_task(path)

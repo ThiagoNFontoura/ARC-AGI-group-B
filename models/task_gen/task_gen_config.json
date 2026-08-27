@@ -1,7 +1,9 @@
 {
-    "generated_examples": 3,
-    "output_dir": "data/task-gen",
+    "generated_examples": 10,
+    "output_dir": "output/task-gen",
     "model": "gemini-3.7-flash",
+    "requests_per_minute": 5,
+    "requests_per_day": 20,
     "transient_retry_attempts": 2,
     "transient_retry_delay_seconds": 5
 }
