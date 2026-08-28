@@ -68,13 +68,14 @@ if the command is launched from a different working directory.
 
 ## Output
 
-A single JSON file is written to `data/baseline_output/`:
+A single JSON file is written to `output/`:
 
-- `output.json` (overwritten on each run)
+- `<tasks_folder_name>_baseline_output.json`
 
 Each output file includes:
 - prompt index
 - all task names
+- total token usage, total processing time, and accuracy percentage in `summary`
 - per-task brief logic explanation
 - per-task correctness status (`correct`, `incorrect`, or `unknown`)
 - predicted test outputs

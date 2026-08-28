@@ -44,23 +44,29 @@ Cada arquivo deve conter as listas `train` e `test`.
 Executa o modelo usando os dados JSON, sem imagens:
 
 ```powershell
-python models/baseline_model/main.py minhas-tasks
+python -m models.baseline_model.main minhas-tasks
 ```
 
-O relatório e salvo em `data/baseline_output/`.
+O relatório e salvo em `output/<pasta>_baseline_output.json`.
 
 ## Solver com imagens
 
 Executa o solver com as imagens renderizadas:
 
 ```powershell
-python models/image_baseline_model/main.py minhas-tasks --render-images
+python -m models.image_baseline_model.main minhas-tasks --render-images
+```
+
+O estagio JSON do solver nao possui limite de tempo. Para processar apenas uma task:
+
+```powershell
+python -m models.image_baseline_model.main training --task-file 007bbfb7.json --no-strong-validate
 ```
 
 Para somente renderizar as imagens, sem chamar o modelo:
 
 ```powershell
-python models/image_baseline_model/main.py minhas-tasks --render-only
+python -m models.image_baseline_model.main minhas-tasks --render-only
 ```
 
 Os resultados ficam em `output/<pasta>_<numero>/`, e as imagens em sua subpasta `images/`.
@@ -68,7 +74,7 @@ Os resultados ficam em `output/<pasta>_<numero>/`, e as imagens em sua subpasta 
 Opcoes uteis:
 
 ```powershell
-python models/image_baseline_model/main.py minhas-tasks --render-workers 4 --no-strong-validate
+python -m models.image_baseline_model.main minhas-tasks --render-workers 4 --no-strong-validate
 ```
 
 ## Gerar tasks aumentadas
@@ -76,8 +82,8 @@ python models/image_baseline_model/main.py minhas-tasks --render-workers 4 --no-
 Gera exemplos de treino adicionais para uma task ou para todas as tasks de uma pasta:
 
 ```powershell
-python models/task_gen/main.py data/minhas-tasks
-python models/task_gen/main.py data/minhas-tasks/3aa6fb7a.json
+python -m models.task_gen.main data/minhas-tasks
+python -m models.task_gen.main data/minhas-tasks/3aa6fb7a.json
 ```
 
 Cada resultado e salvo em `output/task-gen/` com o sufixo `-plus.json`, por exemplo:
@@ -91,7 +97,7 @@ O task-gen respeita no maximo 5 requisicoes por minuto e 20 por dia (UTC). Cada 
 O numero de exemplos gerados pode ser alterado pela configuracao em `models/task_gen/task_gen_config.json` ou sobrescrito na execucao:
 
 ```powershell
-python models/task_gen/main.py data/minhas-tasks --generated-examples 5
+python -m models.task_gen.main data/minhas-tasks --generated-examples 5
 ```
 
 Tasks que ja terminam em `-plus.json` sao ignoradas quando uma pasta e processada.

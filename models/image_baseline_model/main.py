@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime, timezone
 from pathlib import Path
@@ -359,6 +360,8 @@ def _build_report(
     model_result: dict[str, Any],
     task_errors: dict[str, str],
     validation_results: dict[str, dict[str, Any]] | None = None,
+    token_usage: dict[str, int] | None = None,
+    total_duration_seconds: float = 0.0,
 ) -> dict[str, Any]:
     returned_tasks = model_result.get("tasks", []) if isinstance(model_result, dict) else []
     by_name: dict[str, dict[str, Any]] = {}
@@ -405,12 +408,37 @@ def _build_report(
             }
         )
 
+    correct_count = sum(
+        item["correctness_result"]["status"] == "correct" for item in output_tasks
+    )
+    incorrect_count = sum(
+        item["correctness_result"]["status"] == "incorrect" for item in output_tasks
+    )
+    unknown_count = len(output_tasks) - correct_count - incorrect_count
+    evaluated_count = correct_count + incorrect_count
+    accuracy_percentage = (
+        round(correct_count / evaluated_count * 100, 2) if evaluated_count else 0.0
+    )
+
     return {
         "prompt_index": prompt_index,
         "tasks_folder": "",
         "model": model_name,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "skipped_files": skipped,
+        "summary": {
+            "total_tasks": len(tasks),
+            "correct_tasks": correct_count,
+            "incorrect_tasks": incorrect_count,
+            "unknown_tasks": unknown_count,
+            "accuracy_percentage": accuracy_percentage,
+            "total_duration_seconds": total_duration_seconds,
+            "token_usage": token_usage or {
+                "prompt_tokens": 0,
+                "candidates_tokens": 0,
+                "total_tokens": 0,
+            },
+        },
         "tasks": output_tasks,
     }
 
@@ -419,8 +447,6 @@ def _solve_json_tasks(
     handler: GemmaHandler,
     tasks: list[dict[str, Any]],
     prompt_index: int,
-    timeout_seconds: int,
-    force_response_timeout_seconds: int,
     validator_model: str,
     run_strong_validation: bool,
 ) -> tuple[dict[str, Any], dict[str, str], dict[str, dict[str, Any]]]:
@@ -431,15 +457,7 @@ def _solve_json_tasks(
     for offset, task in enumerate(tasks):
         task_name = task["task_name"]
         try:
-            result, state = _solve_with_deadline(
-                handler=handler,
-                prompt=build_prompt([task], prompt_index + offset),
-                timeout_seconds=timeout_seconds,
-                force_response_timeout_seconds=force_response_timeout_seconds,
-            )
-            if result is None:
-                task_errors[task_name] = state or "response_not_informed"
-                continue
+            result = handler.solve(build_prompt([task], prompt_index + offset))
             returned_tasks = result.get("tasks", []) if isinstance(result, dict) else []
             if not isinstance(returned_tasks, list) or not returned_tasks:
                 raise ValueError("Model returned no task result.")
@@ -536,6 +554,10 @@ def main() -> None:
         help="Folder name under data/ that contains one or more ARC task JSON files.",
     )
     parser.add_argument(
+        "--task-file",
+        help="Process only this JSON file from the selected tasks folder.",
+    )
+    parser.add_argument(
         "--render-images",
         action="store_true",
         help="Generate task images in parallel under data/<tasks_folder_name>/images.",
@@ -591,6 +613,10 @@ def main() -> None:
         raise SystemExit(f"Tasks folder not found: {tasks_dir}")
 
     tasks, skipped = _load_tasks(tasks_dir)
+    if args.task_file:
+        tasks = [task for task in tasks if task["source_file"] == args.task_file]
+        if not tasks:
+            raise SystemExit(f"Task file not found in selected folder: {args.task_file}")
     if not tasks:
         raise SystemExit(
             "No ARC task files found. Ensure at least one JSON file with train/test arrays exists."
@@ -622,6 +648,8 @@ def main() -> None:
     image_errors: dict[str, str] = {}
     json_validation_results: dict[str, dict[str, Any]] = {}
     image_validation_results: dict[str, dict[str, Any]] = {}
+    json_start_time = time.perf_counter()
+    json_token_usage = {"prompt_tokens": 0, "candidates_tokens": 0, "total_tokens": 0}
 
     try:
         handler = GemmaHandler()
@@ -630,14 +658,13 @@ def main() -> None:
             handler=handler,
             tasks=tasks,
             prompt_index=prompt_index,
-            timeout_seconds=args.task_timeout_seconds,
-            force_response_timeout_seconds=args.force_response_timeout_seconds,
             validator_model=args.validator_model,
             run_strong_validation=args.strong_validate,
         )
     except Exception as exc:
         for task in tasks:
             json_errors[task["task_name"]] = str(exc)
+    json_token_usage = handler.token_usage if "handler" in locals() else json_token_usage
 
     json_report = _build_report(
         tasks,
@@ -647,6 +674,8 @@ def main() -> None:
         json_result,
         json_errors,
         validation_results=json_validation_results,
+        token_usage=json_token_usage,
+        total_duration_seconds=round(time.perf_counter() - json_start_time, 2),
     )
     json_report["tasks_folder"] = args.tasks_folder_name
     json_path = output_base / f"{output_base.name}-json.json"
@@ -667,6 +696,8 @@ def main() -> None:
         print(f"Images folder: {images_dir}")
 
         try:
+            image_start_time = time.perf_counter()
+            image_token_usage = {"prompt_tokens": 0, "candidates_tokens": 0, "total_tokens": 0}
             handler = GemmaHandler()
             model_name = handler.model
             image_result, image_errors, image_validation_results = _solve_image_tasks(
@@ -682,6 +713,7 @@ def main() -> None:
         except Exception as exc:
             for task in tasks:
                 image_errors[task["task_name"]] = str(exc)
+        image_token_usage = handler.token_usage if "handler" in locals() else image_token_usage
 
         image_report = _build_report(
             tasks,
@@ -691,6 +723,8 @@ def main() -> None:
             image_result,
             image_errors,
             validation_results=image_validation_results,
+            token_usage=image_token_usage,
+            total_duration_seconds=round(time.perf_counter() - image_start_time, 2),
         )
         image_report["tasks_folder"] = args.tasks_folder_name
         image_path = output_base / f"{output_base.name}-image.json"

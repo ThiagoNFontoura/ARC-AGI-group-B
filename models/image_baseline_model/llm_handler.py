@@ -25,6 +25,11 @@ class GemmaHandler:
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
         self.api_key = api_key or os.getenv("GEMMA_API_KEY")
         self.model = model or os.getenv("GEMMA_MODEL", "gemini-3.5-flash-lite")
+        self.token_usage = {
+            "prompt_tokens": 0,
+            "candidates_tokens": 0,
+            "total_tokens": 0,
+        }
 
         if not self.api_key:
             raise ValueError("Missing GEMMA_API_KEY in environment.")
@@ -38,8 +43,17 @@ class GemmaHandler:
 
         self._client = genai.Client(api_key=self.api_key)
 
+    def _record_usage(self, response: Any) -> None:
+        usage = getattr(response, "usage_metadata", None)
+        self.token_usage["prompt_tokens"] += getattr(usage, "prompt_token_count", 0) or 0
+        self.token_usage["candidates_tokens"] += (
+            getattr(usage, "candidates_token_count", 0) or 0
+        )
+        self.token_usage["total_tokens"] += getattr(usage, "total_token_count", 0) or 0
+
     def _generate_text(self, prompt: str, model: str | None = None) -> str:
         response = self._client.models.generate_content(model=model or self.model, contents=prompt)
+        self._record_usage(response)
         text = getattr(response, "text", None)
         if not text:
             raise ValueError("Model response did not include text.")
@@ -85,6 +99,7 @@ class GemmaHandler:
             model=model or self.model,
             contents=contents,
         )
+        self._record_usage(first_response)
         first_text = getattr(first_response, "text", None)
         if not first_text:
             raise ValueError("Model response did not include text.")
@@ -99,6 +114,7 @@ class GemmaHandler:
                 model=model or self.model,
                 contents=retry_contents,
             )
+            self._record_usage(retry_response)
             retry_text = getattr(retry_response, "text", None)
             if not retry_text:
                 raise ValueError("Model retry response did not include text.")

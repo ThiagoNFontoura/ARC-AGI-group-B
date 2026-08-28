@@ -1,5 +1,6 @@
 import argparse
 import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -105,12 +106,18 @@ def main() -> None:
             "No ARC task files found. Ensure at least one JSON file with train/test arrays exists."
         )
 
-    output_dir = PROJECT_ROOT / "data" / "baseline_output"
+    output_dir = PROJECT_ROOT / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     model_name = "gemma-3-27b-it"
     by_name: dict[str, dict[str, Any]] = {}
     task_errors_by_name: dict[str, str] = {}
+    start_time = time.perf_counter()
+    token_usage = {
+        "prompt_tokens": 0,
+        "candidates_tokens": 0,
+        "total_tokens": 0,
+    }
     try:
         handler = GemmaHandler()
         model_name = handler.model
@@ -136,6 +143,7 @@ def main() -> None:
                         by_name[task["task_name"]] = first_item
             except Exception as exc:
                 task_errors_by_name[task["task_name"]] = f"LLM task call failed: {exc}"
+        token_usage = handler.token_usage
     except Exception as exc:
         error_text = f"LLM setup failed: {exc}"
         for task in tasks:
@@ -170,6 +178,19 @@ def main() -> None:
             }
         )
 
+    correct_count = sum(
+        item["correctness_result"]["status"] == "correct" for item in output_tasks
+    )
+    incorrect_count = sum(
+        item["correctness_result"]["status"] == "incorrect" for item in output_tasks
+    )
+    unknown_count = len(output_tasks) - correct_count - incorrect_count
+    evaluated_count = correct_count + incorrect_count
+    accuracy_percentage = (
+        round(correct_count / evaluated_count * 100, 2) if evaluated_count else 0.0
+    )
+    total_duration_seconds = round(time.perf_counter() - start_time, 2)
+
     output = {
         "prompt_index": 1,
         "prompt_chunks": len(tasks),
@@ -177,14 +198,26 @@ def main() -> None:
         "model": model_name,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "skipped_files": skipped,
+        "summary": {
+            "total_tasks": len(tasks),
+            "correct_tasks": correct_count,
+            "incorrect_tasks": incorrect_count,
+            "unknown_tasks": unknown_count,
+            "accuracy_percentage": accuracy_percentage,
+            "total_duration_seconds": total_duration_seconds,
+            "token_usage": token_usage,
+        },
         "tasks": output_tasks,
     }
 
-    output_path = output_dir / "output.json"
+    output_path = output_dir / f"{args.tasks_folder_name}_baseline_output.json"
     output_path.write_text(json.dumps(output, indent=2), encoding="utf-8")
 
     print(f"Processed tasks: {len(tasks)}")
     print(f"Skipped files: {len(skipped)}")
+    print(f"Accuracy: {accuracy_percentage}% ({correct_count}/{evaluated_count} correct)")
+    print(f"Duration: {total_duration_seconds}s")
+    print(f"Total tokens: {token_usage['total_tokens']}")
     print(f"Output saved to: {output_path}")
 
 

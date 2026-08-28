@@ -26,6 +26,11 @@ class GemmaHandler:
         """Configure a Gemini client using supplied or environment credentials."""
         self.api_key = api_key or os.getenv("GEMMA_API_KEY")
         self.model = model or os.getenv("GEMMA_MODEL", "gemini-3.5-flash-lite")
+        self.token_usage = {
+            "prompt_tokens": 0,
+            "candidates_tokens": 0,
+            "total_tokens": 0,
+        }
 
         if not self.api_key:
             raise ValueError("Missing GEMMA_API_KEY in environment.")
@@ -42,6 +47,13 @@ class GemmaHandler:
     def _generate_text(self, prompt: str) -> str:
         """Send a prompt to the configured model and return its text response."""
         response = self._client.models.generate_content(model=self.model, contents=prompt)
+        usage = getattr(response, "usage_metadata", None)
+        prompt_tokens = getattr(usage, "prompt_token_count", 0) or 0
+        candidates_tokens = getattr(usage, "candidates_token_count", 0) or 0
+        total_tokens = getattr(usage, "total_token_count", 0) or 0
+        self.token_usage["prompt_tokens"] += prompt_tokens
+        self.token_usage["candidates_tokens"] += candidates_tokens
+        self.token_usage["total_tokens"] += total_tokens
         text = getattr(response, "text", None)
         if not text:
             raise ValueError("Model response did not include text.")
