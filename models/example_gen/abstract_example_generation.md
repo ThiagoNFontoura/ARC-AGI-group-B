@@ -26,23 +26,17 @@ O prompt exige que as matrizes geradas contenham inteiros e sejam retangulares. 
 
 ## 3. Geração em uma única chamada
 
-Para cada task, o modelo realiza uma única inferência gulosa por meio da API `generate_content`. A resposta deve ser um objeto JSON estrito com quatro campos:
+Para cada task, o modelo realiza uma única inferência por meio da API `generate_content`. A resposta deve ser um objeto JSON estrito com quatro campos:
 
 ```json
 {
   "logic_explanation": "explicação breve da regra",
+  "transformation_function": "def transform(grid):\\n    ...",
   "generated_train": [
     {"input": [[...]], "output": [[...]]}
   ],
   "predicted_test_outputs": [[[...]]],
-  "validation": {
-    "original_train": [
-      {"index": 0, "passed": true, "reason": "..."}
-    ],
-    "generated_train": [
-      {"index": 0, "passed": true, "reason": "..."}
-    ]
-  }
+  "validation": "campo auxiliar ignorado pelo verificador"
 }
 ```
 
@@ -64,9 +58,9 @@ Aumentar `generated_examples` tende a aumentar os tokens de saída e o tempo de 
 
 ## 4. Validação da resposta
 
-Depois da resposta, o programa extrai o objeto JSON e valida localmente sua estrutura. A explicação da regra precisa existir e não pode estar vazia. O campo `generated_train` precisa ser uma lista com exatamente a quantidade solicitada de exemplos. Cada exemplo deve conter grids retangulares de inteiros e deve respeitar as propriedades marcadas como constantes nos exemplos de treino.
+Depois da resposta, o programa extrai o objeto JSON e valida localmente sua estrutura. A explicação da regra precisa existir e não pode estar vazia. `transformation_function` precisa definir uma função Python `transform(grid)`. O campo `generated_train` precisa ser uma lista com exatamente a quantidade solicitada de exemplos. Cada exemplo deve conter grids retangulares de inteiros e deve respeitar as propriedades marcadas como constantes nos exemplos de treino.
 
-Essa validação não faz uma segunda chamada ao modelo e não prova formalmente que os exemplos gerados estão corretos. Ela verifica o formato e as invariantes estruturais observadas nos dados. A correção semântica dos pares ainda depende da regra inferida pelo próprio modelo.
+O código compila a função em um ambiente restrito e a executa em cada par original e gerado. A saída calculada é comparada por igualdade exata com o output esperado. Essa comparação, e não uma declaração do modelo, determina a validade semântica de cada exemplo. A execução rejeita sintaxe Python não permitida e não oferece acesso livre a imports, arquivos, rede ou estado externo.
 
 Essa barreira automática complementa o processo anterior, no qual a correção era conferida principalmente por inspeção manual: um renderer separado produzia imagens dos inputs e outputs de algumas tasks ou conjuntos de tasks, e a consistência era analisada visualmente. Como não há um modelo gratuito mais forte disponível no AI Studio para validar independentemente a compreensão do `gemini-3.7-flash`, essa inspeção manual continua sendo útil, mas agora é complementada por uma verificação automática.
 
@@ -91,7 +85,7 @@ $$
 
 A task aumentada serve como uma nova representação supervisionada do mesmo problema, mas não deve ser confundida com uma garantia de que a regra foi descoberta corretamente. O objetivo experimental é medir se exemplos produzidos pelo modelo mais forte, especialmente o `gemini-3.7-flash`, melhoram a acurácia do solver mais fraco; essa melhoria ainda precisa ser avaliada em testes mais profundos. Exemplos sintéticos incorretos podem reforçar uma interpretação errada e prejudicar a inferência posterior.
 
-O campo `predicted_test_outputs` é uma previsão auxiliar para as entradas de teste. Ele não representa exemplos supervisionados e não é usado na montagem atual do dataset aumentado: o arquivo `-plus.json` preserva somente as entradas de teste sem rótulos. A geração de exemplos e a resolução da task são etapas separadas.
+O campo `predicted_test_outputs` é uma previsão auxiliar para as entradas de teste e não é usado na montagem atual do dataset aumentado. A validade não é declarada pelo modelo: é recalculada executando `transformation_function`. A geração de exemplos e a resolução da task são etapas separadas.
 
 ## 6. Custo computacional e uso da API
 
@@ -105,7 +99,7 @@ $$
 
 Uma falha de API pode consumir uma requisição mesmo sem produzir um arquivo, pois a chamada chega ao provedor antes de retornar o erro. Por isso, a quantidade de arquivos `-plus.json` não é uma medida confiável do número de requisições consumidas.
 
-A configuração atual prioriza economia de chamadas: `transient_retry_attempts` é zero e não há timeout local aplicado ao pensamento do modelo. Os limites de requisições configurados no JSON são referências operacionais; o controle efetivo da quota pertence ao provedor da API.
+A configuração atual prioriza economia de chamadas: `transient_retry_attempts` é zero por padrão e não há timeout local aplicado ao pensamento do modelo. Os limites de requisições configurados no JSON são referências operacionais; o controle efetivo da quota pertence ao provedor da API.
 
 ## 7. Análise de invariantes
 
@@ -121,7 +115,7 @@ As propriedades observadas incluem:
 - número de componentes conectados em quatro direções;
 - simetria horizontal e vertical exatas.
 
-As propriedades constantes são enviadas no prompt como restrições para os exemplos novos. As propriedades não constantes não são congeladas: o modelo deve analisar como elas variam entre os exemplos e usar essa variação para inferir a regra. Essa separação delimita a geração sem impor que toda task mantenha o mesmo tamanho, número de objetos ou distribuição de cores quando os dados demonstram o contrário.
+As propriedades constantes são enviadas no prompt como restrições para os exemplos novos. Se qualquer exemplo novo violar uma dessas invariantes, todos os exemplos novos são invalidados imediatamente. As propriedades não constantes não são congeladas: o modelo deve analisar como elas variam entre os exemplos e usar essa variação para inferir a regra. Essa separação delimita a geração sem impor que toda task mantenha o mesmo tamanho, número de objetos ou distribuição de cores quando os dados demonstram o contrário.
 
 ## 8. Perguntas ainda abertas
 
@@ -137,7 +131,7 @@ Decisão provisória: aceitar variação entre execuções. A diversidade de exe
 
 **13. Critério de sucesso**
 
-Decisão: o modelo deve inferir uma regra de input para output, testá-la nos pares originais e gerados e retornar flags por exemplo. O código também verifica formato e invariantes. Exemplos com `valid: false` são ignorados pelo solver. O sucesso experimental completo exige essa validação e, posteriormente, medir o efeito na acurácia do solver.
+Decisão: o modelo deve inferir uma regra de input para output e retorná-la como `transformation_function`. O código executa essa função nos pares originais e gerados, compara os outputs e atribui as flags. Exemplos com `valid: false` são ignorados pelo solver. O sucesso experimental completo exige essa validação executável e, posteriormente, medir o efeito na acurácia do solver.
 
 **14. Limites fora do escopo**
 
@@ -149,7 +143,7 @@ Decisão: `exemplar synthesis` é o nome curto preferido; em português, “sín
 
 **16. Validação semântica futura**
 
-Decisão: o modelo gerador deve montar a regra, aplicá-la a todos os pares e retornar os resultados de validação. A inspeção manual por imagens, usada antes, permanece como auditoria. Se mais de 20% dos exemplos extras falharem, todos os extras recebem `valid: false`; caso contrário, somente os falhos são descartados pelo solver. A margem de 20% é um compromisso inicial razoável: abaixo disso, preserva exemplos bons; acima disso, sugere que a regra inteira está pouco confiável.
+Decisão: o modelo gerador deve montar a regra como função, e o código deve aplicá-la a todos os pares. Se qualquer extra violar uma invariante, todos os extras recebem `valid: false` imediatamente. Se não houver violação de invariantes, mas mais de 20% dos exemplos extras falharem na função, todos os extras também recebem `valid: false`; caso contrário, somente os falhos são descartados pelo solver. A margem de 20% é um compromisso inicial razoável: abaixo disso, preserva exemplos bons; acima disso, sugere que a regra inteira está pouco confiável.
 
 **17. Separação dos resultados**
 

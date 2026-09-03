@@ -1,4 +1,5 @@
 import argparse
+import ast
 import json
 import os
 import sys
@@ -83,29 +84,52 @@ def _normalise_generated_examples(
     return examples, structural_flags
 
 
-def _validation_flags(result: dict[str, Any], original_count: int, generated_count: int) -> tuple[list[bool], list[bool], list[str]]:
-    validation = result.get("validation")
-    if not isinstance(validation, dict):
-        return [False] * original_count, [False] * generated_count, ["Missing validation object."]
+def _compile_transformation(source: Any) -> Any:
+    if not isinstance(source, str) or not source.strip():
+        raise ValueError("Model did not return transformation_function.")
+    tree = ast.parse(source, mode="exec")
+    allowed_nodes = {
+        ast.Module, ast.FunctionDef, ast.arguments, ast.arg, ast.Return, ast.Assign,
+        ast.AnnAssign, ast.Name, ast.Load, ast.Store, ast.Constant, ast.List, ast.Tuple,
+        ast.Dict, ast.Subscript, ast.Slice, ast.BinOp, ast.UnaryOp, ast.BoolOp, ast.Compare,
+        ast.If, ast.For, ast.comprehension, ast.ListComp, ast.DictComp, ast.SetComp,
+        ast.Call, ast.keyword, ast.Attribute, ast.AugAssign, ast.Add, ast.Sub, ast.Mult,
+        ast.Div, ast.FloorDiv, ast.Mod, ast.USub, ast.Not, ast.And, ast.Or, ast.Eq,
+        ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.In, ast.NotIn, ast.IfExp,
+    }
+    if any(type(node) not in allowed_nodes for node in ast.walk(tree)):
+        raise ValueError("transformation_function contains unsupported Python syntax.")
+    functions = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "transform"]
+    if len(functions) != 1 or len(functions[0].args.args) != 1:
+        raise ValueError("transformation_function must define transform(grid).")
+    forbidden_names = {"eval", "exec", "open", "__import__", "compile", "globals", "locals"}
+    if any(isinstance(node, ast.Name) and node.id in forbidden_names for node in ast.walk(tree)):
+        raise ValueError("transformation_function uses a forbidden name.")
+    allowed_builtins = {
+        name: __builtins__[name] if isinstance(__builtins__, dict) else getattr(__builtins__, name)
+        for name in ("abs", "all", "any", "enumerate", "len", "list", "max", "min", "range", "reversed", "set", "sorted", "sum", "zip")
+    }
+    namespace = {"__builtins__": allowed_builtins}
+    exec(compile(tree, "<transformation_function>", "exec"), namespace)
+    return namespace["transform"]
 
-    def read_flags(key: str, expected: int) -> tuple[list[bool], list[str]]:
-        records = validation.get(key)
-        if not isinstance(records, list):
-            return [False] * expected, [f"Missing validation records for {key}."]
-        by_index = {item.get("index"): item for item in records if isinstance(item, dict)}
-        flags = []
-        reasons = []
-        for index in range(expected):
-            item = by_index.get(index)
-            passed = bool(item.get("passed")) if isinstance(item, dict) else False
+
+def _validate_with_transformation(
+    transform: Any, examples: list[dict[str, Any]]
+) -> tuple[list[bool], list[str]]:
+    flags = []
+    reasons = []
+    for index, example in enumerate(examples):
+        try:
+            predicted = transform(example.get("input"))
+            passed = predicted == example.get("output")
             flags.append(passed)
             if not passed:
-                reasons.append(str(item.get("reason", "Rule validation failed.")) if isinstance(item, dict) else "Missing validation record.")
-        return flags, reasons
-
-    original_flags, original_reasons = read_flags("original_train", original_count)
-    generated_flags, generated_reasons = read_flags("generated_train", generated_count)
-    return original_flags, generated_flags, original_reasons + generated_reasons
+                reasons.append(f"Transformation output mismatch at example {index}.")
+        except Exception as exc:
+            flags.append(False)
+            reasons.append(f"Transformation failed at example {index}: {exc}")
+    return flags, reasons
 
 
 def _build_plus_task(
@@ -119,19 +143,24 @@ def _build_plus_task(
     if not isinstance(explanation, str) or not explanation.strip():
         raise ValueError("Model did not return logic_explanation.")
     source_train = task.get("train", []) if isinstance(task.get("train", []), list) else []
+    transform = _compile_transformation(result.get("transformation_function"))
     invariant_analysis = analyze_task_invariants(source_train)
     generated, structural_flags = _normalise_generated_examples(
         result.get("generated_train"), generated_examples, invariant_analysis
     )
-    original_flags, generated_flags, validation_reasons = _validation_flags(
-        result, len(source_train), len(generated)
-    )
+    all_examples = source_train + generated
+    function_flags, validation_reasons = _validate_with_transformation(transform, all_examples)
+    original_flags = function_flags[: len(source_train)]
+    generated_flags = function_flags[len(source_train) :]
+    has_invariant_violation = not all(structural_flags)
     generated_flags = [
-        model_flag and structural_flag
+        model_flag and structural_flag and not has_invariant_violation
         for model_flag, structural_flag in zip(generated_flags, structural_flags)
     ]
     invalid_generated = sum(not flag for flag in generated_flags)
-    all_generated_invalid = bool(generated) and invalid_generated / len(generated) > max_invalid_fraction
+    all_generated_invalid = bool(generated) and (
+        has_invariant_violation or invalid_generated / len(generated) > max_invalid_fraction
+    )
     if all_generated_invalid:
         generated_flags = [False] * len(generated)
     annotated_originals = []
@@ -153,6 +182,7 @@ def _build_plus_task(
     return {
         "task_name": task["task_name"],
         "logic_explanation": explanation.strip(),
+        "transformation_function": result["transformation_function"],
         "train": annotated_originals + annotated_generated,
         "test": _without_outputs(task.get("test", [])),
         "invariants": invariant_analysis,

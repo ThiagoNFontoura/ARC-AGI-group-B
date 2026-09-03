@@ -35,12 +35,9 @@ def build_prompt(task: dict[str, Any], generated_examples: int) -> str:
         "Required JSON schema:\n"
         "{\n"
         '  "logic_explanation": "brief rule explanation",\n'
+        '  "transformation_function": "def transform(grid):\\n    ...",\n'
         '  "generated_train": [{"input": [[...]], "output": [[...]]}],\n'
-        '  "predicted_test_outputs": [[[...]]],\n'
-        '  "validation": {\n'
-        '    "original_train": [{"index": 0, "passed": true, "reason": "..."}],\n'
-        '    "generated_train": [{"index": 0, "passed": true, "reason": "..."}]\n'
-        "  }\n"
+        '  "predicted_test_outputs": [[[...]]]\n'
         "}\n\n"
         f"Generate exactly {generated_examples} additional training examples.\n"
         "Before generating, analyze input and output properties separately. "
@@ -60,8 +57,12 @@ def build_prompt(task: dict[str, Any], generated_examples: int) -> str:
         "6) Do not copy a source example unless it is unavoidable.\n"
         "7) Explain which non-constant properties vary and how that variation follows "
         "from the inferred rule.\n"
-        "8) Construct the inferred input-to-output rule and test it on every original "
-        "and generated training pair. Return one validation record for every pair. "
-        "Set passed to false when the rule fails, and briefly explain why.\n\n"
+        "8) Convert the natural-language rule into a pure Python function named "
+        "transform(grid). The function must receive one input grid and return its "
+        "predicted output grid. Do not use imports, files, network, randomness, "
+        "or external state.\n"
+        "9) Return the function source in transformation_function. The program will "
+        "execute it independently on every original and generated pair, compare the "
+        "returned grid with the expected output, and assign validity flags.\n\n"
         f"Task JSON: {task_json}"
     )
