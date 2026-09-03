@@ -22,10 +22,16 @@ def _extract_json_block(text: str) -> str:
 
 
 class GemmaHandler:
-    def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model: str | None = None,
+        thinking_level: str | None = None,
+    ) -> None:
         """Configure a Gemini client using supplied or environment credentials."""
         self.api_key = api_key or os.getenv("GEMMA_API_KEY")
         self.model = model or os.getenv("GEMMA_MODEL", "gemini-3.5-flash-lite")
+        self.thinking_level = thinking_level
         self.token_usage = {
             "prompt_tokens": 0,
             "candidates_tokens": 0,
@@ -46,7 +52,18 @@ class GemmaHandler:
 
     def _generate_text(self, prompt: str) -> str:
         """Send a prompt to the configured model and return its text response."""
-        response = self._client.models.generate_content(model=self.model, contents=prompt)
+        config = None
+        if self.thinking_level:
+            from google.genai import types  # type: ignore
+
+            config = types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(thinking_level=self.thinking_level)
+            )
+        response = self._client.models.generate_content(
+            model=self.model,
+            contents=prompt,
+            config=config,
+        )
         usage = getattr(response, "usage_metadata", None)
         prompt_tokens = getattr(usage, "prompt_token_count", 0) or 0
         candidates_tokens = getattr(usage, "candidates_token_count", 0) or 0

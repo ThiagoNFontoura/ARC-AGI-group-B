@@ -13,13 +13,13 @@
 - Output Generated
 
 08-26-2026
-- Briefly studied how task generation works and planned an example generator with TTT
-- Implemented the initial version of task-gen, but it was not extensively tested; testing was limited to two tasks
+- Briefly studied how example generation works and planned an example generator with TTT
+- Implemented the initial version of example-gen, but it was not extensively tested; testing was limited to two tasks
 - Switched to Gemini 3.7 Flash, corrected the grid handling, and preserved source dimensions.
 
 08-27-2026
-- Updated the project setup and execution instructions in HOWTORUN.md, including task-gen
-- Updated the task-gen output directory to output/task-gen
+- Updated the project setup and execution instructions in HOWTORUN.md, including example-gen
+- Updated the example-gen output directory to output/example-gen
 
 08-28-2026
 - 

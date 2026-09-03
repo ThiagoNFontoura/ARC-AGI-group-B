@@ -27,7 +27,7 @@ GEMMA_MODEL=gemini-3.5-flash-lite
 GEMMA_VALIDATOR_MODEL=gemini-3.5-flash-lite
 ```
 
-O `task-gen` usa `gemini-3.7-flash` pela configuracao em `models/task_gen/task_gen_config.json`.
+O `example-gen` usa `gemini-3.7-flash` pela configuracao em `models/example_gen/example_gen_config.json` e solicita o nivel alto de pensamento.
 
 ## Estrutura das tasks
 
@@ -82,22 +82,24 @@ python -m models.image_baseline_model.main minhas-tasks --render-workers 4 --no-
 Gera exemplos de treino adicionais para uma task ou para todas as tasks de uma pasta:
 
 ```powershell
-python -m models.task_gen.main data/minhas-tasks
-python -m models.task_gen.main data/minhas-tasks/3aa6fb7a.json
+python -m models.example_gen.main data/minhas-tasks
+python -m models.example_gen.main data/minhas-tasks/3aa6fb7a.json
 ```
 
-Cada resultado e salvo em `output/task-gen/` com o sufixo `-plus.json`, por exemplo:
+Cada resultado e salvo em `output/example-gen/` com o sufixo `-plus.json`, por exemplo:
 
 ```text
-output/task-gen/3aa6fb7a-plus.json
+output/example-gen/3aa6fb7a-plus.json
 ```
 
-O task-gen respeita no maximo 5 requisicoes por minuto e 20 por dia (UTC). Cada tentativa, incluindo retries apos erros temporarios, conta para esses limites. O uso fica registrado em `output/task-gen/.request_usage.json` para continuar sendo controlado entre execucoes.
+O example-gen foi configurado para no maximo 5 requisicoes por minuto e 10 por dia (UTC), sem retries automaticos. O programa nao interrompe uma chamada por tempo de pensamento: aguarda a resposta do modelo. Os campos de limite sao informativos; o controle de cota deve ser feito no provedor.
 
-O numero de exemplos gerados pode ser alterado pela configuracao em `models/task_gen/task_gen_config.json` ou sobrescrito na execucao:
+O numero de exemplos gerados pode ser alterado pela configuracao em `models/example_gen/example_gen_config.json` ou sobrescrito na execucao:
 
 ```powershell
-python -m models.task_gen.main data/minhas-tasks --generated-examples 5
+python -m models.example_gen.main data/minhas-tasks --generated-examples 5
 ```
+
+O example-gen tambem salva `relatorio[ID].json` em `output/example-gen/`. O relatorio registra o status de cada task e os resultados da validacao por exemplo. Cada par de treino recebe a flag `valid`; os solvers ignoram exemplos com `valid: false`. Se mais de 20% dos exemplos novos falharem na validacao, todos os exemplos novos daquela task sao marcados como invalidos.
 
 Tasks que ja terminam em `-plus.json` sao ignoradas quando uma pasta e processada.

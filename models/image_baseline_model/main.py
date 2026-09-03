@@ -57,7 +57,11 @@ def _load_tasks(tasks_dir: Path) -> tuple[list[dict[str, Any]], list[str]]:
             {
                 "task_name": task_name,
                 "source_file": file_path.name,
-                "train": payload.get("train", []),
+                "train": [
+                    example
+                    for example in payload.get("train", [])
+                    if not isinstance(example, dict) or example.get("valid", True) is not False
+                ],
                 "test": payload.get("test", []),
             }
         )
