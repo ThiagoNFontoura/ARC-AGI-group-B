@@ -21,8 +21,8 @@
 - Updated the project setup and execution instructions in HOWTORUN.md, including example-gen
 - Updated the example-gen output directory to output/example-gen
 
-08-28-2026
-- 
+09-02-2026
+- Began drafting the paper, focusing on the abstract, introduction, and related work sections
 
 09-03-2026
 - Configured exemplar synthesis to use Gemini 3.7 Flash with high thinking and no automatic retries by default.
