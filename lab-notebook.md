@@ -23,3 +23,9 @@
 
 08-28-2026
 - 
+
+09-03-2026
+- Configured exemplar synthesis to use Gemini 3.7 Flash with high thinking and no automatic retries by default.
+- Updated generation to use all available training examples and analyze input/output invariants independently.
+- Added rule-based validation for original and generated examples, with per-example validity flags and automatic rejection when over 20% of generated examples fail.
+- Updated both solvers to ignore invalid examples and added per-run generation reports with validation summaries and errors.
