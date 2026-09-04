@@ -67,11 +67,11 @@ Create or edit the `.env` file at the repository root to configure your Google G
 
 ```env
 GEMMA_API_KEY=your_api_key_here
-GEMMA_MODEL=gemini-3.1-flash-lite
+GEMMA_MODEL=gemma-4-31b-it
 ```
 
 Recommended models:
-- `gemini-3.1-flash-lite` (High daily quota: 500 RPD, 15 RPM)
+- `gemma-4-31b-it` (solver padrão)
 - `gemini-2.5-flash`
 - `gemini-2.5-flash-lite`
 

@@ -26,7 +26,8 @@ class GemmaHandler:
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
         """Configure a Gemini client using supplied or environment credentials."""
         self.api_key = api_key or os.getenv("GEMMA_API_KEY")
-        self.model = model or os.getenv("GEMMA_MODEL", "gemini-3.1-flash-lite")
+        self.model = model or os.getenv("GEMMA_MODEL", "gemma-4-31b-it")
+        self.thinking_level = os.getenv("GEMMA_THINKING_LEVEL", "high")
 
         if not self.api_key:
             raise ValueError("Missing GEMMA_API_KEY in environment.")
@@ -47,8 +48,16 @@ class GemmaHandler:
         last_exception: Exception | None = None
         for attempt in range(1, max_retries + 1):
             try:
+                from google.genai import types  # type: ignore
+
                 response = self._client.models.generate_content(
-                    model=self.model, contents=prompt
+                    model=self.model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        thinking_config=types.ThinkingConfig(
+                            thinking_level=self.thinking_level
+                        )
+                    ),
                 )
                 text = getattr(response, "text", None)
                 if not text:

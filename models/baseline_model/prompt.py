@@ -10,11 +10,17 @@ def build_prompt(tasks: list[dict[str, Any]], prompt_index: int) -> str:
     """
     compact_tasks = []
     for task in tasks:
+        test_cases = [
+            {key: value for key, value in example.items() if key != "output"}
+            if isinstance(example, dict)
+            else example
+            for example in task.get("test", [])
+        ]
         compact_tasks.append(
             {
                 "task_name": task["task_name"],
                 "train": task.get("train", []),
-                "test": task.get("test", []),
+                "test": test_cases,
             }
         )
 

@@ -3,7 +3,6 @@ import json
 import os
 import re
 import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -132,66 +131,6 @@ def _extract_ground_truth_outputs(task: dict[str, Any]) -> tuple[list[Any], bool
             has_ground_truth_for_all = False
 
     return ground_truth_outputs, has_ground_truth_for_all
-
-
-def _call_with_timeout(callable_fn: Any, timeout_seconds: int) -> tuple[Any | None, bool]:
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(callable_fn)
-        try:
-            return future.result(timeout=timeout_seconds), False
-        except FutureTimeoutError:
-            future.cancel()
-            return None, True
-
-
-def _solve_with_deadline(
-    handler: GemmaHandler,
-    prompt: str,
-    timeout_seconds: int,
-    force_response_timeout_seconds: int,
-) -> tuple[dict[str, Any] | None, str | None]:
-    result, timed_out = _call_with_timeout(lambda: handler.solve(prompt), timeout_seconds)
-    if not timed_out:
-        return result, None
-
-    force_prompt = (
-        "Time limit reached. Return your best final answer now as valid JSON only.\n\n"
-        + prompt
-    )
-    forced_result, forced_timed_out = _call_with_timeout(
-        lambda: handler.solve(force_prompt),
-        force_response_timeout_seconds,
-    )
-    if forced_timed_out:
-        return None, "response_not_informed"
-    return forced_result, "forced_response"
-
-
-def _solve_with_images_deadline(
-    handler: GemmaHandler,
-    prompt: str,
-    image_inputs: list[tuple[str, Path]],
-    timeout_seconds: int,
-    force_response_timeout_seconds: int,
-) -> tuple[dict[str, Any] | None, str | None]:
-    result, timed_out = _call_with_timeout(
-        lambda: handler.solve_with_images(prompt, image_inputs),
-        timeout_seconds,
-    )
-    if not timed_out:
-        return result, None
-
-    force_prompt = (
-        "Time limit reached. Return your best final answer now as valid JSON only.\n\n"
-        + prompt
-    )
-    forced_result, forced_timed_out = _call_with_timeout(
-        lambda: handler.solve_with_images(force_prompt, image_inputs),
-        force_response_timeout_seconds,
-    )
-    if forced_timed_out:
-        return None, "response_not_informed"
-    return forced_result, "forced_response"
 
 
 def _safe_task_name(task_name: str) -> str:
@@ -497,8 +436,6 @@ def _solve_image_tasks(
     tasks: list[dict[str, Any]],
     images_dir: Path,
     prompt_index: int,
-    timeout_seconds: int,
-    force_response_timeout_seconds: int,
     run_strong_validation: bool = False,
     validator_model: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, str], dict[str, dict[str, Any]]]:
@@ -510,16 +447,9 @@ def _solve_image_tasks(
         task_name = task["task_name"]
         try:
             image_inputs = _build_image_inputs([task], images_dir)
-            result, state = _solve_with_images_deadline(
-                handler=handler,
-                prompt=build_image_prompt([task], prompt_index + offset),
-                image_inputs=image_inputs,
-                timeout_seconds=timeout_seconds,
-                force_response_timeout_seconds=force_response_timeout_seconds,
+            result = handler.solve_with_images(
+                build_image_prompt([task], prompt_index + offset), image_inputs
             )
-            if result is None:
-                task_errors[task_name] = state or "response_not_informed"
-                continue
             returned_tasks = result.get("tasks", []) if isinstance(result, dict) else []
             if not isinstance(returned_tasks, list) or not returned_tasks:
                 raise ValueError("Model returned no task result.")
@@ -590,20 +520,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--validator-model",
-        default=os.getenv("GEMMA_VALIDATOR_MODEL", "gemini-3.5-flash-lite"),
+        default=os.getenv("GEMMA_VALIDATOR_MODEL", "gemma-4-31b-it"),
         help="Model name for second-stage image validation/correction.",
-    )
-    parser.add_argument(
-        "--task-timeout-seconds",
-        type=int,
-        default=int(os.getenv("TASK_TIMEOUT_SECONDS", "90")),
-        help="Soft timeout in seconds per task call to the main model.",
-    )
-    parser.add_argument(
-        "--force-response-timeout-seconds",
-        type=int,
-        default=int(os.getenv("FORCE_RESPONSE_TIMEOUT_SECONDS", "30")),
-        help="Extra timeout for forced-response retry after main timeout.",
     )
     parser.set_defaults(strong_validate=True)
     args = parser.parse_args()
@@ -644,7 +562,7 @@ def main() -> None:
         return
 
     prompt_index = _next_prompt_index(tasks_dir)
-    model_name = os.getenv("GEMMA_MODEL", "gemini-3.5-flash-lite")
+    model_name = os.getenv("GEMMA_MODEL", "gemma-4-31b-it")
     output_base = _output_dir_for(args.tasks_folder_name, prompt_index)
     json_result: dict[str, Any] = {"tasks": []}
     image_result: dict[str, Any] = {"tasks": []}
@@ -709,8 +627,6 @@ def main() -> None:
                 tasks,
                 images_dir,
                 prompt_index,
-                timeout_seconds=args.task_timeout_seconds,
-                force_response_timeout_seconds=args.force_response_timeout_seconds,
                 run_strong_validation=args.strong_validate,
                 validator_model=args.validator_model,
             )

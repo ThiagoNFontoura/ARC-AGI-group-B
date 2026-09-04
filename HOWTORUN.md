@@ -23,11 +23,13 @@ Nunca coloque a chave diretamente no codigo ou no Git.
 Opcionalmente, defina o modelo usado pelo solver:
 
 ```env
-GEMMA_MODEL=gemini-3.5-flash-lite
-GEMMA_VALIDATOR_MODEL=gemini-3.5-flash-lite
+GEMMA_MODEL=gemma-4-31b-it
+GEMMA_VALIDATOR_MODEL=gemma-4-31b-it
+EXAMPLE_GEN_MODEL=gemini-3.5-flash-lite
+GEMMA_THINKING_LEVEL=high
 ```
 
-O `example-gen` usa `gemini-3.7-flash` pela configuracao em `models/example_gen/example_gen_config.json` e solicita o nivel alto de pensamento.
+O solver usa `gemma-4-31b-it` com high thinking por padrao. O `example-gen` usa `gemini-3.5-flash-lite` com high thinking.
 
 ## Estrutura das tasks
 

@@ -30,8 +30,8 @@ class GemmaHandler:
     ) -> None:
         """Configure a Gemini client using supplied or environment credentials."""
         self.api_key = api_key or os.getenv("GEMMA_API_KEY")
-        self.model = model or os.getenv("GEMMA_MODEL", "gemini-3.5-flash-lite")
-        self.thinking_level = thinking_level
+        self.model = model or os.getenv("GEMMA_MODEL", "gemma-4-31b-it")
+        self.thinking_level = thinking_level or os.getenv("GEMMA_THINKING_LEVEL", "high")
         self.token_usage = {
             "prompt_tokens": 0,
             "candidates_tokens": 0,

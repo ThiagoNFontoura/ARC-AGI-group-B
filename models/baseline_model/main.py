@@ -15,6 +15,7 @@ from models.baseline_model.llm_handler import GemmaHandler
 from models.baseline_model.prompt import build_prompt
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+MAX_TASK_RETRIES = 2
 
 
 def _is_arc_task(payload: Any) -> bool:
@@ -113,7 +114,7 @@ def main() -> None:
     output_dir = PROJECT_ROOT / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    model_name = "gemma-3-27b-it"
+    model_name = "gemma-4-31b-it"
     by_name: dict[str, dict[str, Any]] = {}
     task_errors_by_name: dict[str, str] = {}
     start_time = time.perf_counter()
@@ -129,22 +130,32 @@ def main() -> None:
         for prompt_index, task in enumerate(tasks, start=1):
             prompt = build_prompt([task], prompt_index=prompt_index)
             try:
-                model_result = handler.solve(prompt)
-                returned_tasks = model_result.get("tasks", []) if isinstance(model_result, dict) else []
-                found = False
-                if isinstance(returned_tasks, list):
-                    for item in returned_tasks:
-                        if not isinstance(item, dict):
-                            continue
-                        name = item.get("task_name")
-                        if isinstance(name, str) and name.strip() == task["task_name"]:
-                            by_name[name] = item
-                            found = True
-                            break
-                if not found and isinstance(returned_tasks, list) and returned_tasks:
-                    first_item = returned_tasks[0]
-                    if isinstance(first_item, dict):
-                        by_name[task["task_name"]] = first_item
+                for attempt in range(MAX_TASK_RETRIES + 1):
+                    try:
+                        model_result = handler.solve(prompt)
+                        returned_tasks = (
+                            model_result.get("tasks", [])
+                            if isinstance(model_result, dict)
+                            else []
+                        )
+                        found = False
+                        if isinstance(returned_tasks, list):
+                            for item in returned_tasks:
+                                if not isinstance(item, dict):
+                                    continue
+                                name = item.get("task_name")
+                                if isinstance(name, str) and name.strip() == task["task_name"]:
+                                    by_name[name] = item
+                                    found = True
+                                    break
+                        if not found and isinstance(returned_tasks, list) and returned_tasks:
+                            first_item = returned_tasks[0]
+                            if isinstance(first_item, dict):
+                                by_name[task["task_name"]] = first_item
+                        break
+                    except Exception:
+                        if attempt == MAX_TASK_RETRIES:
+                            raise
             except Exception as exc:
                 task_errors_by_name[task["task_name"]] = f"LLM task call failed: {exc}"
         token_usage = handler.token_usage
@@ -215,6 +226,7 @@ def main() -> None:
     }
 
     output_path = output_dir / f"{args.tasks_folder_name}_baseline_output.json"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(output, indent=2), encoding="utf-8")
 
     print(f"Processed tasks: {len(tasks)}")

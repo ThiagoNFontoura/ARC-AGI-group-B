@@ -24,7 +24,8 @@ def _extract_json_block(text: str) -> str:
 class GemmaHandler:
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
         self.api_key = api_key or os.getenv("GEMMA_API_KEY")
-        self.model = model or os.getenv("GEMMA_MODEL", "gemini-3.5-flash-lite")
+        self.model = model or os.getenv("GEMMA_MODEL", "gemma-4-31b-it")
+        self.thinking_level = os.getenv("GEMMA_THINKING_LEVEL", "high")
         self.token_usage = {
             "prompt_tokens": 0,
             "candidates_tokens": 0,
@@ -52,7 +53,17 @@ class GemmaHandler:
         self.token_usage["total_tokens"] += getattr(usage, "total_token_count", 0) or 0
 
     def _generate_text(self, prompt: str, model: str | None = None) -> str:
-        response = self._client.models.generate_content(model=model or self.model, contents=prompt)
+        from google.genai import types  # type: ignore
+
+        response = self._client.models.generate_content(
+            model=model or self.model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(
+                    thinking_level=self.thinking_level
+                )
+            ),
+        )
         self._record_usage(response)
         text = getattr(response, "text", None)
         if not text:

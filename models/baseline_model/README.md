@@ -28,7 +28,7 @@ pip install -r requirements.txt
 ```env
 GEMMA_API_KEY=your_api_key_here
 # Optional:
-# GEMMA_MODEL=gemma-3-27b-it
+# GEMMA_MODEL=gemma-4-31b-it
 ```
 
 ## Data format
@@ -79,3 +79,5 @@ Each output file includes:
 - per-task brief logic explanation
 - per-task correctness status (`correct`, `incorrect`, or `unknown`)
 - predicted test outputs
+
+Each task is attempted once initially, with up to 2 additional retries if the model call or response parsing fails.

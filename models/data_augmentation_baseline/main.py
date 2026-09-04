@@ -213,7 +213,7 @@ def run_inference(
     output_path: Path,
 ) -> dict[str, Any]:
     start_time = time.perf_counter()
-    model_name = "gemma-3-27b-it"
+    model_name = "gemma-4-31b-it"
     by_name: dict[str, dict[str, Any]] = {}
     task_errors_by_name: dict[str, str] = {}
     try:

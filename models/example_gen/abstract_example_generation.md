@@ -62,7 +62,7 @@ Depois da resposta, o programa extrai o objeto JSON e valida localmente sua estr
 
 O código compila a função em um ambiente restrito e a executa em cada par original e gerado. A saída calculada é comparada por igualdade exata com o output esperado. Essa comparação, e não uma declaração do modelo, determina a validade semântica de cada exemplo. A execução rejeita sintaxe Python não permitida e não oferece acesso livre a imports, arquivos, rede ou estado externo.
 
-Essa barreira automática complementa o processo anterior, no qual a correção era conferida principalmente por inspeção manual: um renderer separado produzia imagens dos inputs e outputs de algumas tasks ou conjuntos de tasks, e a consistência era analisada visualmente. Como não há um modelo gratuito mais forte disponível no AI Studio para validar independentemente a compreensão do `gemini-3.7-flash`, essa inspeção manual continua sendo útil, mas agora é complementada por uma verificação automática.
+Essa barreira automática complementa o processo anterior, no qual a correção era conferida principalmente por inspeção manual: um renderer separado produzia imagens dos inputs e outputs de algumas tasks ou conjuntos de tasks, e a consistência era analisada visualmente. Como não há um modelo gratuito mais forte disponível no AI Studio para validar independentemente a compreensão do `gemini-3.5-flash-lite`, essa inspeção manual continua sendo útil, mas agora é complementada por uma verificação automática.
 
 Se a resposta for inválida, a task falha localmente. Com `transient_retry_attempts = 0`, nenhuma nova requisição é feita para tentar corrigir a resposta. Erros da API, como indisponibilidade do modelo ou quota excedida, também encerram apenas aquela task e não geram retries automáticos.
 
@@ -83,13 +83,13 @@ $$
 C^+ = C \cup G
 $$
 
-A task aumentada serve como uma nova representação supervisionada do mesmo problema, mas não deve ser confundida com uma garantia de que a regra foi descoberta corretamente. O objetivo experimental é medir se exemplos produzidos pelo modelo mais forte, especialmente o `gemini-3.7-flash`, melhoram a acurácia do solver mais fraco; essa melhoria ainda precisa ser avaliada em testes mais profundos. Exemplos sintéticos incorretos podem reforçar uma interpretação errada e prejudicar a inferência posterior.
+A task aumentada serve como uma nova representação supervisionada do mesmo problema, mas não deve ser confundida com uma garantia de que a regra foi descoberta corretamente. O objetivo experimental é medir se exemplos produzidos pelo modelo mais forte, especialmente o `gemini-3.5-flash-lite`, melhoram a acurácia do solver mais fraco; essa melhoria ainda precisa ser avaliada em testes mais profundos. Exemplos sintéticos incorretos podem reforçar uma interpretação errada e prejudicar a inferência posterior.
 
 O campo `predicted_test_outputs` é uma previsão auxiliar para as entradas de teste e não é usado na montagem atual do dataset aumentado. A validade não é declarada pelo modelo: é recalculada executando `transformation_function`. A geração de exemplos e a resolução da task são etapas separadas.
 
 ## 6. Custo computacional e uso da API
 
-O custo principal é a inferência do modelo para cada task. No caso configurado para o `example-gen`, cada task faz uma chamada ao modelo `gemini-3.7-flash` com nível alto de pensamento. O custo em tokens inclui tanto o prompt, que contém os exemplos da task, quanto a resposta, que contém a explicação, os pares sintéticos e os registros de validação solicitados.
+O custo principal é a inferência do modelo para cada task. No caso configurado para o `example-gen`, cada task faz uma chamada ao modelo `gemini-3.5-flash-lite`. O custo em tokens inclui tanto o prompt, que contém os exemplos da task, quanto a resposta, que contém a explicação, os pares sintéticos e os registros de validação solicitados.
 
 Com $N$ tasks processadas e retries desativados:
 
