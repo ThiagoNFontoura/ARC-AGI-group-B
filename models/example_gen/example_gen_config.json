@@ -1,0 +1,12 @@
+{
+    "generated_examples": 10,
+    "output_dir": "output/example-gen",
+    "model": "gemini-3.5-flash-lite",
+    "thinking_level": "high",
+    "function_attempts": 3,
+    "requests_per_minute": 5,
+    "requests_per_day": 10,
+    "transient_retry_attempts": 5,
+    "transient_retry_delay_seconds": 30,
+    "interval_between_tasks_seconds": 20
+}

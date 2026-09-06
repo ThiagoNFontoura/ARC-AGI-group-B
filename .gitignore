@@ -79,3 +79,7 @@ wandb/
 # Project-specific folders (add any custom folders you want to ignore)
 # data/
 # results/
+__pycache__/
+*.pyc
+.venv/
+.env

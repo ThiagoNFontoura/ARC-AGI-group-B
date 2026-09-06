@@ -1,0 +1,277 @@
+{
+  "task_name": "2072aba6",
+  "logic_explanation": "Each cell containing 5 in the 3x3 input grid is expanded into a 2x2 block in the 6x6 output grid with an alternating pattern of 1 and 2. All other cells remain 0.",
+  "transformation_function": "def transform(grid):\n    out = [[0 for i in range(6)] for j in range(6)]\n    for r in range(3):\n        for c in range(3):\n            if grid[r][c] == 5:\n                out[2 * r][2 * c] = 1\n                out[2 * r][2 * c + 1] = 2\n                out[2 * r + 1][2 * c] = 2\n                out[2 * r + 1][2 * c + 1] = 1\n    return out",
+  "train": [
+    {
+      "input": [
+        [
+          0,
+          5,
+          0
+        ],
+        [
+          5,
+          5,
+          5
+        ],
+        [
+          0,
+          5,
+          0
+        ]
+      ],
+      "output": [
+        [
+          0,
+          0,
+          1,
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          2,
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          2,
+          1,
+          2,
+          1,
+          2
+        ],
+        [
+          2,
+          1,
+          2,
+          1,
+          2,
+          1
+        ],
+        [
+          0,
+          0,
+          1,
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          2,
+          1,
+          0,
+          0
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    },
+    {
+      "input": [
+        [
+          5,
+          0,
+          0
+        ],
+        [
+          0,
+          5,
+          0
+        ],
+        [
+          0,
+          0,
+          5
+        ]
+      ],
+      "output": [
+        [
+          1,
+          2,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          2,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          2,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1,
+          2
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          2,
+          1
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    },
+    {
+      "input": [
+        [
+          0,
+          5,
+          0
+        ],
+        [
+          0,
+          5,
+          5
+        ],
+        [
+          5,
+          5,
+          0
+        ]
+      ],
+      "output": [
+        [
+          0,
+          0,
+          1,
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          2,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          2,
+          1,
+          2
+        ],
+        [
+          0,
+          0,
+          2,
+          1,
+          2,
+          1
+        ],
+        [
+          1,
+          2,
+          1,
+          2,
+          0,
+          0
+        ],
+        [
+          2,
+          1,
+          2,
+          1,
+          0,
+          0
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    }
+  ],
+  "test": [
+    {
+      "input": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          5,
+          0
+        ],
+        [
+          5,
+          5,
+          5
+        ]
+      ]
+    }
+  ],
+  "invariants": {
+    "inputs": {
+      "valid_grid": true,
+      "height": 3,
+      "width": 3,
+      "colors": [
+        0,
+        5
+      ]
+    },
+    "outputs": {
+      "valid_grid": true,
+      "height": 6,
+      "width": 6,
+      "colors": [
+        0,
+        1,
+        2
+      ],
+      "background_color": 0
+    }
+  },
+  "validation_summary": {
+    "original_train_total": 3,
+    "original_train_valid": 3,
+    "original_validation_passed": true,
+    "generated_train_total": 10,
+    "generated_train_valid": 0,
+    "generated_train_invalid": 10,
+    "generated_train_discarded": 10,
+    "all_generated_invalid_due_to_invariant": true,
+    "all_generated_invalid_due_to_threshold": false,
+    "validation_reasons": []
+  },
+  "source_file": "2072aba6.json",
+  "generated_at_utc": "2026-09-06T01:27:17.492297+00:00"
+}

@@ -1,0 +1,514 @@
+{
+  "task_name": "506d28a5",
+  "logic_explanation": "For each of the top 4 rows, compare the top block (rows 0-3) and bottom block (rows 5-8) separated by a middle row of color 4. Output a 4x5 grid of background color 3, placing a 0 wherever both the corresponding top cell and bottom cell are 0 (non-colored).",
+  "transformation_function": "def transform(grid):\n    result = [[3, 3, 3, 3, 3] for r in range(4)]\n    for r in range(4):\n        for c in range(5):\n            if grid[r][c] == 0 and grid[r + 5][c] == 0:\n                result[r][c] = 0\n    return result",
+  "train": [
+    {
+      "input": [
+        [
+          0,
+          2,
+          2,
+          0,
+          0
+        ],
+        [
+          2,
+          2,
+          2,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          2,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          2,
+          2,
+          0
+        ],
+        [
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        [
+          1,
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          1,
+          1,
+          1,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          0,
+          0
+        ]
+      ],
+      "output": [
+        [
+          3,
+          3,
+          3,
+          3,
+          0
+        ],
+        [
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        [
+          0,
+          0,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          3,
+          3,
+          0
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    },
+    {
+      "input": [
+        [
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        [
+          0,
+          0,
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          2,
+          0,
+          2,
+          2
+        ],
+        [
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        [
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        [
+          0,
+          1,
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          1,
+          0,
+          1,
+          0
+        ],
+        [
+          1,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          1,
+          1
+        ]
+      ],
+      "output": [
+        [
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          0,
+          3,
+          0
+        ],
+        [
+          3,
+          3,
+          0,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          3,
+          3,
+          3
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    },
+    {
+      "input": [
+        [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          2,
+          2,
+          2,
+          0
+        ],
+        [
+          0,
+          2,
+          0,
+          0,
+          0
+        ],
+        [
+          2,
+          2,
+          2,
+          0,
+          2
+        ],
+        [
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        [
+          1,
+          1,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          1,
+          0,
+          1,
+          1
+        ],
+        [
+          1,
+          0,
+          1,
+          0,
+          1
+        ],
+        [
+          0,
+          1,
+          0,
+          1,
+          1
+        ]
+      ],
+      "output": [
+        [
+          3,
+          3,
+          0,
+          0,
+          3
+        ],
+        [
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          3,
+          0,
+          3
+        ],
+        [
+          3,
+          3,
+          3,
+          3,
+          3
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    },
+    {
+      "input": [
+        [
+          0,
+          2,
+          0,
+          0,
+          2
+        ],
+        [
+          0,
+          2,
+          2,
+          0,
+          2
+        ],
+        [
+          0,
+          0,
+          0,
+          2,
+          2
+        ],
+        [
+          0,
+          0,
+          2,
+          2,
+          0
+        ],
+        [
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        [
+          1,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          1,
+          1,
+          1,
+          0
+        ]
+      ],
+      "output": [
+        [
+          3,
+          3,
+          3,
+          0,
+          3
+        ],
+        [
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        [
+          0,
+          0,
+          0,
+          3,
+          3
+        ],
+        [
+          0,
+          3,
+          3,
+          3,
+          0
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    }
+  ],
+  "test": [
+    {
+      "input": [
+        [
+          0,
+          2,
+          2,
+          2,
+          2
+        ],
+        [
+          0,
+          0,
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          2,
+          0,
+          0,
+          0
+        ],
+        [
+          2,
+          2,
+          2,
+          0,
+          2
+        ],
+        [
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          1,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      ]
+    }
+  ],
+  "invariants": {
+    "inputs": {
+      "valid_grid": true,
+      "height": 9,
+      "width": 5,
+      "colors": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "background_color": 0
+    },
+    "outputs": {
+      "valid_grid": true,
+      "height": 4,
+      "width": 5,
+      "colors": [
+        0,
+        3
+      ],
+      "background_color": 3
+    }
+  },
+  "validation_summary": {
+    "original_train_total": 4,
+    "original_train_valid": 4,
+    "original_validation_passed": true,
+    "generated_train_total": 10,
+    "generated_train_valid": 0,
+    "generated_train_invalid": 10,
+    "generated_train_discarded": 10,
+    "all_generated_invalid_due_to_invariant": true,
+    "all_generated_invalid_due_to_threshold": false,
+    "validation_reasons": [
+      "Generated example: Transformation output mismatch at example 1.",
+      "Generated example: Transformation output mismatch at example 2.",
+      "Generated example: Transformation output mismatch at example 3."
+    ]
+  },
+  "source_file": "506d28a5.json",
+  "generated_at_utc": "2026-09-06T01:59:47.695849+00:00"
+}
