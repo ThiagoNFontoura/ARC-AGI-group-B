@@ -60,7 +60,7 @@ Aumentar `generated_examples` tende a aumentar os tokens de saída e o tempo de 
 
 Depois da resposta, o programa extrai o objeto JSON e valida localmente sua estrutura. A explicação da regra precisa existir e não pode estar vazia. `transformation_function` precisa definir uma função Python `transform(grid)`. O campo `generated_train` precisa ser uma lista com exatamente a quantidade solicitada de exemplos. Cada exemplo deve conter grids retangulares de inteiros e deve respeitar as propriedades marcadas como constantes nos exemplos de treino.
 
-O código compila a função em um ambiente restrito e a executa em cada par original e gerado. A saída calculada é comparada por igualdade exata com o output esperado. Essa comparação, e não uma declaração do modelo, determina a validade semântica de cada exemplo. A execução rejeita sintaxe Python não permitida e não oferece acesso livre a imports, arquivos, rede ou estado externo.
+O código compila a função em um ambiente restrito e primeiro a executa em todos os pares originais. Se algum original falhar, os exemplos sintéticos são descartados e somente os originais são mantidos. Se todos os originais passarem, a função é aplicada individualmente aos exemplos gerados e somente os extras aprovados são mantidos. A saída calculada é comparada por igualdade exata com o output esperado. Essa comparação, e não uma declaração do modelo, determina a validade semântica de cada exemplo. A execução rejeita sintaxe Python não permitida e não oferece acesso livre a imports, arquivos, rede ou estado externo.
 
 Essa barreira automática complementa o processo anterior, no qual a correção era conferida principalmente por inspeção manual: um renderer separado produzia imagens dos inputs e outputs de algumas tasks ou conjuntos de tasks, e a consistência era analisada visualmente. Como não há um modelo gratuito mais forte disponível no AI Studio para validar independentemente a compreensão do `gemini-3.5-flash-lite`, essa inspeção manual continua sendo útil, mas agora é complementada por uma verificação automática.
 
@@ -68,12 +68,12 @@ Se a resposta for inválida, a task falha localmente. Com `transient_retry_attem
 
 ## 5. Montagem da task aumentada
 
-Quando a resposta é válida, o arquivo `-plus.json` é montado com:
+Quando a função passa nos exemplos originais, o arquivo `-plus.json` é montado com:
 
 1. o nome da task original;
 2. a explicação da regra inferida;
 3. todos os exemplos de treino originais;
-4. os exemplos de treino sintéticos gerados pelo modelo;
+4. os exemplos de treino sintéticos que passaram na validação individual;
 5. as entradas de teste sem suas saídas verdadeiras;
 6. o nome do arquivo de origem e o horário de geração.
 
@@ -105,17 +105,15 @@ A configuração atual prioriza economia de chamadas: `transient_retry_attempts`
 
 As propriedades são analisadas separadamente para inputs e outputs. Uma propriedade só é marcada como constante quando possui exatamente o mesmo valor em todos os grids válidos daquele lado. Não se exige que uma propriedade tenha o mesmo valor entre input e output, pois uma regra pode transformar, por exemplo, um input $3 \times 3$ em um output $1 \times 1$.
 
-As propriedades observadas incluem:
+As propriedades usadas como invariantes incluem:
 
-- altura e largura do grid;
+- grid válido: matriz não vazia, retangular e composta apenas por inteiros;
+- altura;
+- largura;
 - conjunto de cores presentes;
-- contagem de cada cor;
-- cor de fundo estimada;
-- quantidade de células que não pertencem ao fundo;
-- número de componentes conectados em quatro direções;
-- simetria horizontal e vertical exatas.
+- cor de fundo estimada.
 
-As propriedades constantes são enviadas no prompt como restrições para os exemplos novos. Se qualquer exemplo novo violar uma dessas invariantes, todos os exemplos novos são invalidados imediatamente. As propriedades não constantes não são congeladas: o modelo deve analisar como elas variam entre os exemplos e usar essa variação para inferir a regra. Essa separação delimita a geração sem impor que toda task mantenha o mesmo tamanho, número de objetos ou distribuição de cores quando os dados demonstram o contrário.
+As propriedades constantes são enviadas no prompt como restrições para os exemplos novos. Se qualquer exemplo novo violar uma dessas invariantes, todos os exemplos novos são invalidados imediatamente. Não há mais limiar de 20% para essa decisão. As propriedades não constantes não são congeladas: o modelo deve analisar como elas variam entre os exemplos e usar essa variação para inferir a regra.
 
 ## 8. Perguntas ainda abertas
 

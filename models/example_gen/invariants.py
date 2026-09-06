@@ -1,5 +1,4 @@
 import json
-from collections import deque
 from typing import Any
 
 
@@ -16,44 +15,13 @@ def _grid_properties(grid: Any) -> dict[str, Any]:
     colors = sorted({cell for row in grid for cell in row})
     counts = {str(color): sum(row.count(color) for row in grid) for color in colors}
     background = max(colors, key=lambda color: (counts[str(color)], -color))
-    foreground = sum(counts[str(color)] for color in colors if color != background)
-    visited: set[tuple[int, int]] = set()
-    components = 0
-    for row_index, row in enumerate(grid):
-        for column_index, color in enumerate(row):
-            if color == background or (row_index, column_index) in visited:
-                continue
-            components += 1
-            queue = deque([(row_index, column_index)])
-            visited.add((row_index, column_index))
-            while queue:
-                current_row, current_column = queue.popleft()
-                for next_row, next_column in (
-                    (current_row - 1, current_column),
-                    (current_row + 1, current_column),
-                    (current_row, current_column - 1),
-                    (current_row, current_column + 1),
-                ):
-                    if (
-                        0 <= next_row < height
-                        and 0 <= next_column < width
-                        and grid[next_row][next_column] != background
-                        and (next_row, next_column) not in visited
-                    ):
-                        visited.add((next_row, next_column))
-                        queue.append((next_row, next_column))
 
     return {
         "valid_grid": True,
         "height": height,
         "width": width,
         "colors": colors,
-        "color_counts": counts,
         "background_color": background,
-        "foreground_cell_count": foreground,
-        "non_background_components_4_connected": components,
-        "horizontal_symmetry": grid == [list(reversed(row)) for row in grid],
-        "vertical_symmetry": grid == list(reversed(grid)),
     }
 
 
