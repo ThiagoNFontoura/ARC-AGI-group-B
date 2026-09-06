@@ -6,8 +6,11 @@ import argparse
 import copy
 import itertools
 import json
+import math
 import os
+import random
 import tempfile
+from collections import defaultdict
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -19,6 +22,10 @@ from torch.amp import GradScaler, autocast
 
 from arc_prize.data import ARCDatasetParams, pad_and_mask_grid
 from arc_prize.model import ARCTransformerEncoderDecoderParams, ARCVisionEncoder
+from models.data_augmentation_baseline.transforms import (
+    TransformSpec,
+    get_transformations,
+)
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -75,24 +82,56 @@ def _target(grid: list[list[int]], config: ARCDatasetParams) -> torch.Tensor:
     return pad_and_mask_grid(grid, config)[0]
 
 
+def _ttt_candidate_count(pool_size: int, maximum_group_size: int, view_count: int) -> int:
+    upper_bound = min(pool_size, maximum_group_size)
+    return view_count * sum(math.perm(pool_size, length) for length in range(3, upper_bound + 1))
+
+
 def _ttt_examples(
     train_examples: list[dict[str, list[list[int]]]],
     config: ARCDatasetParams,
+    transformations: list[TransformSpec] | None = None,
+    *,
+    max_examples: int | None = None,
+    seed: int = 42,
 ) -> list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
-    """Use every ordering of the demonstrations as a supervised adaptation item.
+    """Use every supported ordering and geometric view as an adaptation item.
 
     The final element of each ordering is held out as its target; its input is
     the query and the preceding elements are demonstrations. This mirrors the
-    original mini-arc fine-tuning construction while retaining only real pairs.
+    original mini-arc fine-tuning construction. Group size is capped at the
+    model's training-pair count so a larger synthetic pool remains compatible
+    with the checkpoint architecture.
     """
+    ordered_views: list[
+        tuple[TransformSpec, tuple[dict[str, list[list[int]]], ...]]
+    ] = []
+    specs = transformations or get_transformations(["identity"])
+    maximum_group_size = min(len(train_examples), config.max_train_grids)
+    for spec in specs:
+        for length in range(3, maximum_group_size + 1):
+            for combination in itertools.combinations(train_examples, length):
+                for ordering in itertools.permutations(combination):
+                    ordered_views.append((spec, ordering))
+    if max_examples is not None and len(ordered_views) > max_examples:
+        ordered_views = random.Random(seed).sample(ordered_views, max_examples)
+
     examples = []
-    for length in range(3, len(train_examples) + 1):
-        for combination in itertools.combinations(train_examples, length):
-            for ordering in itertools.permutations(combination):
-                held_out = ordering[-1]
-                grids, masks = _prompt(list(ordering[:-1]), held_out["input"], config)
-                examples.append((grids, masks, _target(held_out["output"], config)))
+    for spec, ordering in ordered_views:
+        transformed_ordering = [_transform_example(example, spec) for example in ordering]
+        held_out = transformed_ordering[-1]
+        grids, masks = _prompt(transformed_ordering[:-1], held_out["input"], config)
+        examples.append((grids, masks, _target(held_out["output"], config)))
     return examples
+
+
+def _transform_example(
+    example: dict[str, list[list[int]]], spec: TransformSpec
+) -> dict[str, list[list[int]]]:
+    return {
+        "input": spec.apply(example["input"]),
+        "output": spec.apply(example["output"]),
+    }
 
 
 def _adapt_model(
@@ -106,9 +145,18 @@ def _adapt_model(
     weight_decay: float,
     batch_size: int,
     accuracy_cutoff: float,
+    transformations: list[TransformSpec] | None = None,
+    max_examples: int | None = None,
+    seed: int = 42,
 ) -> tuple[ARCVisionEncoder, int, int]:
     model = copy.deepcopy(base_model).to(device)
-    examples = _ttt_examples(train_examples, config)
+    examples = _ttt_examples(
+        train_examples,
+        config,
+        transformations,
+        max_examples=max_examples,
+        seed=seed,
+    )
     if not examples or epochs == 0:
         return model.eval(), 0, len(examples)
 
@@ -170,6 +218,143 @@ def _crop_prediction(prediction: torch.Tensor) -> list[list[int]]:
     cols = occupied.any(dim=0).nonzero(as_tuple=True)[0]
     cropped = prediction[rows[0] : rows[-1] + 1, cols[0] : cols[-1] + 1] - 1
     return cropped.clamp_min(0).tolist()
+
+
+def _vote_predictions(
+    candidates: list[tuple[TransformSpec, torch.Tensor]],
+) -> tuple[torch.Tensor, dict[str, Any]]:
+    """Vote like data_augmentation_baseline, including its deterministic ties."""
+    groups: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {
+            "votes": 0,
+            "has_identity": False,
+            "first_index": len(candidates),
+            "transforms": [],
+            "prediction": None,
+        }
+    )
+    for transform_index, (spec, prediction) in enumerate(candidates):
+        key = json.dumps(prediction.tolist(), separators=(",", ":"))
+        group = groups[key]
+        group["votes"] += 1
+        group["has_identity"] |= spec.name == "identity"
+        group["first_index"] = min(group["first_index"], transform_index)
+        group["transforms"].append(spec.name)
+        if group["prediction"] is None:
+            group["prediction"] = prediction
+    ranked = sorted(
+        groups.values(),
+        key=lambda group: (-group["votes"], -int(group["has_identity"]), group["first_index"]),
+    )
+    winner = ranked[0]
+    return winner["prediction"], {
+        "valid_votes": len(candidates),
+        "winner_votes": winner["votes"],
+        "winner_transforms": winner["transforms"],
+        "unique_candidate_count": len(ranked),
+        "distribution": [
+            {
+                "votes": group["votes"],
+                "transforms": group["transforms"],
+                "prediction": _crop_prediction(group["prediction"]),
+            }
+            for group in ranked
+        ],
+    }
+
+
+def _predict_with_augmentation(
+    model: ARCVisionEncoder,
+    demonstrations: list[dict[str, list[list[int]]]],
+    query: list[list[int]],
+    config: ARCDatasetParams,
+    device: torch.device,
+    transformations: list[TransformSpec],
+    *,
+    refinement_rounds: int,
+) -> tuple[torch.Tensor, torch.Tensor, dict[str, Any]]:
+    """Predict each geometric view, invert it, and vote in canonical space."""
+    if len(transformations) == 1 and transformations[0].name == "identity":
+        grids, masks = _prompt(demonstrations, query, config)
+        tuned = _predict(model, grids, masks, device)
+        refined = tuned
+        for _ in range(refinement_rounds):
+            refined = _predict(model, grids, masks, device, target=refined)
+        return tuned, refined, {
+            "valid_votes": 1,
+            "winner_votes": 1,
+            "winner_transforms": ["identity"],
+            "unique_candidate_count": 1,
+        }
+
+    tuned_candidates: list[tuple[TransformSpec, torch.Tensor]] = []
+    refined_candidates: list[tuple[TransformSpec, torch.Tensor]] = []
+    individual_views: list[dict[str, Any]] = []
+    for spec in transformations:
+        transformed_demonstrations = [
+            _transform_example(example, spec) for example in demonstrations
+        ]
+        grids, masks = _prompt(transformed_demonstrations, spec.apply(query), config)
+        tuned_view = _predict(model, grids, masks, device)
+        refined_view = tuned_view
+        for _ in range(refinement_rounds):
+            refined_view = _predict(model, grids, masks, device, target=refined_view)
+
+        tuned_raw = spec.inverse(_crop_prediction(tuned_view))
+        refined_raw = spec.inverse(_crop_prediction(refined_view))
+        tuned_canonical = _target(tuned_raw, config)
+        refined_canonical = _target(refined_raw, config)
+        tuned_candidates.append((spec, tuned_canonical))
+        refined_candidates.append((spec, refined_canonical))
+        individual_views.append(
+            {
+                "transform": spec.name,
+                "ttt_prediction": tuned_raw,
+                "refined_prediction": refined_raw if refinement_rounds > 0 else None,
+            }
+        )
+
+    tuned, tuned_vote = _vote_predictions(tuned_candidates)
+    refined, refined_vote = _vote_predictions(refined_candidates)
+    return tuned, refined, {
+        **tuned_vote,
+        "individual_views": individual_views,
+        "refined_vote": refined_vote if refinement_rounds > 0 else None,
+    }
+
+
+def _load_extra_examples(
+    directory: Path | None,
+    task_id: str,
+    grid_dim: int,
+) -> tuple[list[dict[str, list[list[int]]]], dict[str, Any]]:
+    """Load ARC-GEN pairs, excluding fallback task copies and oversized grids."""
+    if directory is None:
+        return [], {"status": "disabled", "loaded": 0, "rejected": 0}
+    path = directory / f"{task_id}.json"
+    if not path.is_file():
+        return [], {"status": "missing", "loaded": 0, "rejected": 0}
+    with path.open(encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if isinstance(payload, dict):
+        # ARC-GEN stored the original ARC task for families it could not generate.
+        # Those pairs are not additional data and must not be duplicated.
+        return [], {"status": "original_task_fallback", "loaded": 0, "rejected": 0}
+    if not isinstance(payload, list):
+        raise ValueError(f"expected a list of generated pairs in {path}")
+
+    valid = []
+    rejected = 0
+    for pair in payload:
+        if (
+            isinstance(pair, dict)
+            and _valid_grid(pair.get("input"), grid_dim)
+            and _valid_grid(pair.get("output"), grid_dim)
+        ):
+            valid.append({"input": pair["input"], "output": pair["output"]})
+        else:
+            rejected += 1
+    return valid, {"status": "loaded", "loaded": len(valid), "rejected": rejected}
 
 
 def _metrics(
@@ -263,6 +448,7 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
     challenges = _load_json(args.challenges)
     solutions = _load_json(args.solutions) if args.solutions else {}
     requested_task_ids = _load_task_ids(args.task_ids_file, challenges)
+    augmentation_transforms = get_transformations(args.augmentation_transforms)
     torch.manual_seed(args.seed)
     if device.type == "cuda":
         torch.cuda.manual_seed(args.seed)
@@ -274,6 +460,9 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
     scored_task_ids: list[str] = []
     results: dict[str, Any] = {}
     skipped: dict[str, str] = {}
+    extra_example_stats: dict[str, dict[str, Any]] = {}
+    total_extra_examples = 0
+    total_rejected_extra_examples = 0
     eligible = 0
     for task_index, task_id in enumerate(requested_task_ids):
         if args.max_tasks is not None and task_index >= args.max_tasks:
@@ -294,10 +483,19 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
         eligible += 1
         all_train_examples = task["train"]
         train_examples = all_train_examples[: params.num_train_pairs]
+        extra_examples, task_extra_stats = _load_extra_examples(
+            args.ttt_extra_examples_dir,
+            task_id,
+            params.grid_dim,
+        )
+        extra_example_stats[task_id] = task_extra_stats
+        total_extra_examples += task_extra_stats["loaded"]
+        total_rejected_extra_examples += task_extra_stats["rejected"]
+        adaptation_examples = [*train_examples, *extra_examples]
         tuned_model, ttt_epochs_run, ttt_examples = (
             _adapt_model(
                 model,
-                train_examples,
+                adaptation_examples,
                 config,
                 device,
                 epochs=args.ttt_epochs,
@@ -305,6 +503,9 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
                 weight_decay=args.ttt_weight_decay,
                 batch_size=args.ttt_batch_size,
                 accuracy_cutoff=args.ttt_accuracy_cutoff,
+                transformations=augmentation_transforms,
+                max_examples=args.ttt_max_examples,
+                seed=args.seed + task_index,
             )
             if args.ttt_epochs > 0
             else (model, 0, 0)
@@ -314,17 +515,30 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
         for query_index, query in enumerate(task_queries):
             grids, masks = _prompt(train_examples, query["input"], config)
             direct = _predict(model, grids, masks, device)
-            tuned = _predict(tuned_model, grids, masks, device)
-            refined = tuned
-            for _ in range(args.refinement_rounds):
-                refined = _predict(tuned_model, grids, masks, device, target=refined)
+            tuned, refined, augmentation_vote = _predict_with_augmentation(
+                tuned_model,
+                train_examples,
+                query["input"],
+                config,
+                device,
+                augmentation_transforms,
+                refinement_rounds=args.refinement_rounds,
+            )
             record: dict[str, Any] = {
                 "direct_prediction": _crop_prediction(direct),
                 "ttt_prediction": _crop_prediction(tuned),
                 "demonstrations_available": len(all_train_examples),
                 "demonstrations_used": len(train_examples),
+                "extra_examples_used": len(extra_examples),
+                "adaptation_pool_size": len(adaptation_examples),
+                "ttt_candidate_examples": _ttt_candidate_count(
+                    len(adaptation_examples),
+                    config.max_train_grids,
+                    len(augmentation_transforms),
+                ),
                 "ttt_examples": ttt_examples,
                 "ttt_epochs_run": ttt_epochs_run,
+                "augmentation_vote": augmentation_vote,
             }
             if args.refinement_rounds > 0:
                 record["refined_prediction"] = _crop_prediction(refined)
@@ -356,6 +570,16 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
             "weight_decay": args.ttt_weight_decay,
             "batch_size": args.ttt_batch_size,
             "accuracy_cutoff": args.ttt_accuracy_cutoff,
+            "augmentation_transforms": [spec.name for spec in augmentation_transforms],
+            "extra_examples_directory": (
+                str(args.ttt_extra_examples_dir.resolve())
+                if args.ttt_extra_examples_dir is not None
+                else None
+            ),
+            "extra_examples_loaded": total_extra_examples,
+            "extra_examples_rejected": total_rejected_extra_examples,
+            "extra_examples_by_task": extra_example_stats,
+            "max_examples_per_task": args.ttt_max_examples,
         },
         "refinement_rounds": args.refinement_rounds,
         "first_query_only": args.first_query_only,
@@ -387,6 +611,25 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--ttt-weight-decay", type=float, default=1e-5)
     parser.add_argument("--ttt-batch-size", type=int, default=4)
     parser.add_argument("--ttt-accuracy-cutoff", type=float, default=0.995)
+    parser.add_argument(
+        "--augmentation-transforms",
+        nargs="+",
+        default=["identity"],
+        help=(
+            "geometric views used both to augment TTT data and to vote over "
+            "predictions (default: identity only)"
+        ),
+    )
+    parser.add_argument(
+        "--ttt-extra-examples-dir",
+        type=Path,
+        help="directory containing <task-id>.json lists of extra supervised pairs",
+    )
+    parser.add_argument(
+        "--ttt-max-examples",
+        type=int,
+        help="deterministically sample at most this many derived TTT items per task",
+    )
     parser.add_argument("--refinement-rounds", type=int, default=0)
     parser.add_argument("--task-ids-file", type=Path)
     parser.add_argument(
@@ -400,8 +643,16 @@ def _parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     if args.ttt_epochs < 0 or args.refinement_rounds < 0 or args.ttt_batch_size < 1:
         parser.error("TTT epochs must be non-negative and batch size must be positive")
+    if args.ttt_max_examples is not None and args.ttt_max_examples < 1:
+        parser.error("TTT max examples must be positive")
     if not 0.0 < args.ttt_accuracy_cutoff <= 1.0:
         parser.error("TTT accuracy cutoff must be in (0, 1]")
+    try:
+        get_transformations(args.augmentation_transforms)
+    except ValueError as exc:
+        parser.error(str(exc))
+    if args.ttt_extra_examples_dir is not None and not args.ttt_extra_examples_dir.is_dir():
+        parser.error(f"extra examples directory not found: {args.ttt_extra_examples_dir}")
     return args
 
 

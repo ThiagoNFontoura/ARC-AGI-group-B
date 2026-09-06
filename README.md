@@ -103,5 +103,27 @@ RESULTS_DIR="$HOME/arc-results/mini-arc-v12-full-paper-ttt" \
 ./scripts/eval_mini_arc_v12_full_oar.sh
 ```
 
-After the refinement profile has trained, evaluate it with two refinement
-rounds by also setting `CHECKPOINT_PATH` and `REFINEMENT_ROUNDS=2`.
+To compare the best `full-refinement` checkpoint under standard TTT, four-view
+geometric augmentation, and the ARC-GEN extra-example upper bound, run:
+
+```bash
+RESULTS_DIR="$HOME/arc-results/mini-arc-v12-full-refinement-ttt-comparison" \
+./scripts/eval_mini_arc_v12_ttt_comparison_oar.sh
+```
+
+All three runs use identical TTT hyperparameters, task IDs, seed, checkpoint,
+and test queries. It defaults to
+`$HOME/arc-checkpoints/mini-arc-v12-full-refinement/best.pt` and uses two
+refinement rounds. The augmentation run uses `identity`, horizontal and
+vertical flips, and transpose both for TTT examples and prediction voting. The
+cheat run adds compatible pairs from `to-solve/ARC-GEN/tasks`; copied fallback
+tasks and generated grids larger than 12x12 are excluded and counted in its
+report. The derived cheat permutations are deterministically capped at 256 per
+task while all compatible raw pairs remain in its pool; set
+`CHEAT_MAX_TTT_EXAMPLES=0` to enumerate them all. The three raw reports and
+`comparison.json` are written under `RESULTS_DIR`. Use `MAX_TASKS=1
+TTT_EPOCHS=1` for a quick smoke test.
+
+To run the old direct-only checkpoint instead, explicitly set
+`CHECKPOINT_PATH="$HOME/arc-checkpoints/mini-arc-v12-full/best.pt"` and
+`REFINEMENT_ROUNDS=0`.

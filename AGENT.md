@@ -1,9 +1,14 @@
 # mini-arc-v12 agent handoff
 
-## Immediate handoff state (2026-09-03, Grid'5000 local time)
+## Historical handoff state (2026-09-03, Grid'5000 local time)
 
-The user is at Grid'5000 Lyon and wants to use the remaining Sirius night
-window. The next compute tasks are:
+The reservation and training steps below are retained as a historical record.
+The `full-refinement` checkpoint has since become the preferred model for TTT
+comparisons; use `mini-arc-v12-full-refinement/best.pt` with two refinement
+rounds rather than repeating the training instructions in this section.
+
+At that time, the user was at Grid'5000 Lyon and wanted to use the remaining
+Sirius night window. The next compute tasks were:
 
 1. Train the new `full-refinement` profile on Sirius with 8 A100s.
 2. Evaluate the already-trained direct-only full checkpoint on a different,
@@ -168,8 +173,9 @@ last reported synthetic validation metrics were approximately 90.19% cell
 accuracy, 4.34% exact-grid accuracy, and loss 0.4096. Its checkpoints were
 approximately 9.6 MiB each under `$HOME/arc-checkpoints/mini-arc-v12`.
 
-As of this handoff, no completed `full-refinement` result has been reported.
-Its persistent directory is:
+The `full-refinement` profile is the preferred checkpoint for current TTT
+comparisons. Its trained refinement branch supports two inference refinement
+rounds. Its persistent directory is:
 
 ```text
 $HOME/arc-checkpoints/mini-arc-v12-full-refinement
