@@ -1,0 +1,15 @@
+.training-config {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5em;
+}
+
+.training-config table {
+  min-width: 55%;
+  font-size: 1.15em;
+}
+
+.training-config th,
+.training-config td {
+  padding: 0.35em 0.9em;
+}

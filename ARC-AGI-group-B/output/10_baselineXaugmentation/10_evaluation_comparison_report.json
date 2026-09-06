@@ -1,0 +1,212 @@
+{
+  "tasks_folder": "10_evaluation",
+  "generated_at_utc": "2026-08-28T08:05:12.706622+00:00",
+  "model": "gemini-3.1-flash-lite",
+  "summary": {
+    "total_tasks_evaluated": 10,
+    "baseline_accuracy_percentage": 100.0,
+    "augmented_accuracy_percentage": 100.0,
+    "accuracy_delta_percentage": 0.0,
+    "baseline_average_pixel_accuracy_percentage": 100.0,
+    "augmented_average_pixel_accuracy_percentage": 100.0,
+    "pixel_accuracy_delta_percentage": 0.0,
+    "baseline_shape_match_percentage": 100.0,
+    "augmented_shape_match_percentage": 100.0,
+    "shape_match_delta_percentage": 0.0,
+    "baseline_duration_seconds": 119.72,
+    "augmented_duration_seconds": 321.73,
+    "baseline_tokens": {
+      "prompt_tokens": 32945,
+      "candidates_tokens": 5807,
+      "total_tokens": 38752
+    },
+    "augmented_tokens": {
+      "prompt_tokens": 131780,
+      "candidates_tokens": 21510,
+      "total_tokens": 153290
+    },
+    "net_tasks_gained": 0,
+    "fixed_by_augmentation_count": 0,
+    "regressed_by_augmentation_count": 0,
+    "both_correct_count": 10,
+    "both_incorrect_count": 0,
+    "other_count": 0
+  },
+  "fixed_by_augmentation": [],
+  "regressed_by_augmentation": [],
+  "both_correct": [
+    {
+      "task_name": "00dbd492",
+      "source_file": "00dbd492.json",
+      "baseline_status": "correct",
+      "augmented_status": "correct",
+      "baseline_pixel_accuracy": 100.0,
+      "augmented_pixel_accuracy": 100.0,
+      "baseline_shape_match": true,
+      "augmented_shape_match": true,
+      "augmented_consensus_type": "unanimous",
+      "augmented_winner_votes": "4/4",
+      "augmented_winner_transforms": [
+        "identity",
+        "flip_horizontal",
+        "flip_vertical",
+        "transpose"
+      ]
+    },
+    {
+      "task_name": "0a1d4ef5",
+      "source_file": "0a1d4ef5.json",
+      "baseline_status": "correct",
+      "augmented_status": "correct",
+      "baseline_pixel_accuracy": 100.0,
+      "augmented_pixel_accuracy": 100.0,
+      "baseline_shape_match": true,
+      "augmented_shape_match": true,
+      "augmented_consensus_type": "unanimous",
+      "augmented_winner_votes": "4/4",
+      "augmented_winner_transforms": [
+        "identity",
+        "flip_horizontal",
+        "flip_vertical",
+        "transpose"
+      ]
+    },
+    {
+      "task_name": "0a2355a6",
+      "source_file": "0a2355a6.json",
+      "baseline_status": "correct",
+      "augmented_status": "correct",
+      "baseline_pixel_accuracy": 100.0,
+      "augmented_pixel_accuracy": 100.0,
+      "baseline_shape_match": true,
+      "augmented_shape_match": true,
+      "augmented_consensus_type": "unanimous",
+      "augmented_winner_votes": "4/4",
+      "augmented_winner_transforms": [
+        "identity",
+        "flip_horizontal",
+        "flip_vertical",
+        "transpose"
+      ]
+    },
+    {
+      "task_name": "0b17323b",
+      "source_file": "0b17323b.json",
+      "baseline_status": "correct",
+      "augmented_status": "correct",
+      "baseline_pixel_accuracy": 100.0,
+      "augmented_pixel_accuracy": 100.0,
+      "baseline_shape_match": true,
+      "augmented_shape_match": true,
+      "augmented_consensus_type": "plurality",
+      "augmented_winner_votes": "2/4",
+      "augmented_winner_transforms": [
+        "identity",
+        "flip_vertical"
+      ]
+    },
+    {
+      "task_name": "0bb8deee",
+      "source_file": "0bb8deee.json",
+      "baseline_status": "correct",
+      "augmented_status": "correct",
+      "baseline_pixel_accuracy": 100.0,
+      "augmented_pixel_accuracy": 100.0,
+      "baseline_shape_match": true,
+      "augmented_shape_match": true,
+      "augmented_consensus_type": "unanimous",
+      "augmented_winner_votes": "4/4",
+      "augmented_winner_transforms": [
+        "identity",
+        "flip_horizontal",
+        "flip_vertical",
+        "transpose"
+      ]
+    },
+    {
+      "task_name": "0becf7df",
+      "source_file": "0becf7df.json",
+      "baseline_status": "correct",
+      "augmented_status": "correct",
+      "baseline_pixel_accuracy": 100.0,
+      "augmented_pixel_accuracy": 100.0,
+      "baseline_shape_match": true,
+      "augmented_shape_match": true,
+      "augmented_consensus_type": "plurality",
+      "augmented_winner_votes": "2/4",
+      "augmented_winner_transforms": [
+        "identity",
+        "transpose"
+      ]
+    },
+    {
+      "task_name": "0c786b71",
+      "source_file": "0c786b71.json",
+      "baseline_status": "correct",
+      "augmented_status": "correct",
+      "baseline_pixel_accuracy": 100.0,
+      "augmented_pixel_accuracy": 100.0,
+      "baseline_shape_match": true,
+      "augmented_shape_match": true,
+      "augmented_consensus_type": "unanimous",
+      "augmented_winner_votes": "4/4",
+      "augmented_winner_transforms": [
+        "identity",
+        "flip_horizontal",
+        "flip_vertical",
+        "transpose"
+      ]
+    },
+    {
+      "task_name": "0c9aba6e",
+      "source_file": "0c9aba6e.json",
+      "baseline_status": "correct",
+      "augmented_status": "correct",
+      "baseline_pixel_accuracy": 100.0,
+      "augmented_pixel_accuracy": 100.0,
+      "baseline_shape_match": true,
+      "augmented_shape_match": true,
+      "augmented_consensus_type": "tie_broken_by_identity",
+      "augmented_winner_votes": "1/4",
+      "augmented_winner_transforms": [
+        "identity"
+      ]
+    },
+    {
+      "task_name": "0d87d2a6",
+      "source_file": "0d87d2a6.json",
+      "baseline_status": "correct",
+      "augmented_status": "correct",
+      "baseline_pixel_accuracy": 100.0,
+      "augmented_pixel_accuracy": 100.0,
+      "baseline_shape_match": true,
+      "augmented_shape_match": true,
+      "augmented_consensus_type": "unanimous",
+      "augmented_winner_votes": "4/4",
+      "augmented_winner_transforms": [
+        "identity",
+        "flip_horizontal",
+        "flip_vertical",
+        "transpose"
+      ]
+    },
+    {
+      "task_name": "0e671a1a",
+      "source_file": "0e671a1a.json",
+      "baseline_status": "correct",
+      "augmented_status": "correct",
+      "baseline_pixel_accuracy": 100.0,
+      "augmented_pixel_accuracy": 100.0,
+      "baseline_shape_match": true,
+      "augmented_shape_match": true,
+      "augmented_consensus_type": "plurality",
+      "augmented_winner_votes": "2/4",
+      "augmented_winner_transforms": [
+        "identity",
+        "flip_horizontal"
+      ]
+    }
+  ],
+  "both_incorrect": [],
+  "other_cases": []
+}

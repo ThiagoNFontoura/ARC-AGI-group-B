@@ -1,0 +1,255 @@
+{
+  "task_name": "60c09cac",
+  "logic_explanation": "Each cell in the input grid is expanded into a 2x2 block of the same color in the output grid, doubling both the height and width.",
+  "transformation_function": "def transform(grid):\n    h = len(grid)\n    w = len(grid[0])\n    out = [[0] * (2 * w) for _ in range(2 * h)]\n    for r in range(h):\n        for c in range(w):\n            val = grid[r][c]\n            out[2 * r][2 * c] = val\n            out[2 * r][2 * c + 1] = val\n            out[2 * r + 1][2 * c] = val\n            out[2 * r + 1][2 * c + 1] = val\n    return out",
+  "train": [
+    {
+      "input": [
+        [
+          0,
+          3,
+          0
+        ],
+        [
+          0,
+          7,
+          7
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "output": [
+        [
+          0,
+          0,
+          3,
+          3,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          3,
+          3,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          7,
+          7,
+          7,
+          7
+        ],
+        [
+          0,
+          0,
+          7,
+          7,
+          7,
+          7
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    },
+    {
+      "input": [
+        [
+          0,
+          0,
+          8,
+          0
+        ],
+        [
+          0,
+          8,
+          5,
+          5
+        ],
+        [
+          0,
+          0,
+          0,
+          5
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "output": [
+        [
+          0,
+          0,
+          0,
+          0,
+          8,
+          8,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          8,
+          8,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          8,
+          8,
+          5,
+          5,
+          5,
+          5
+        ],
+        [
+          0,
+          0,
+          8,
+          8,
+          5,
+          5,
+          5,
+          5
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          5
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          5,
+          5
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    }
+  ],
+  "test": [
+    {
+      "input": [
+        [
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          6,
+          6,
+          6,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          6,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    }
+  ],
+  "invariants": {
+    "inputs": {
+      "valid_grid": true,
+      "background_color": 0
+    },
+    "outputs": {
+      "valid_grid": true,
+      "background_color": 0
+    }
+  },
+  "validation_summary": {
+    "original_train_total": 2,
+    "original_train_valid": 2,
+    "original_validation_passed": true,
+    "generated_train_total": 10,
+    "generated_train_valid": 0,
+    "generated_train_invalid": 10,
+    "generated_train_discarded": 10,
+    "all_generated_invalid_due_to_invariant": true,
+    "all_generated_invalid_due_to_threshold": false,
+    "validation_reasons": []
+  },
+  "source_file": "60c09cac.json",
+  "generated_at_utc": "2026-09-06T02:05:33.368596+00:00"
+}
