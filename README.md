@@ -127,3 +127,8 @@ TTT_EPOCHS=1` for a quick smoke test.
 To run the old direct-only checkpoint instead, explicitly set
 `CHECKPOINT_PATH="$HOME/arc-checkpoints/mini-arc-v12-full/best.pt"` and
 `REFINEMENT_ROUNDS=0`.
+
+On an ARM64 CUDA cluster without Apptainer, use
+`scripts/eval_mini_arc_v12_ttt_comparison_pcad.sh`. It stages all transient
+inputs beneath the required `$SCRATCH` directory and runs a CUDA-enabled native
+Python environment selected with `PYTHON_BIN`.
