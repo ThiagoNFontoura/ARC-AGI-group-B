@@ -1,0 +1,237 @@
+{
+  "task_name": "be03b35f",
+  "logic_explanation": "Extract the top-left 2x2 subgrid from the 5x5 input grid and rotate it 90 degrees counter-clockwise to form the 2x2 output grid.",
+  "transformation_function": "def transform(grid):\n    result = [[grid[0][1], grid[1][1]], [grid[0][0], grid[1][0]]]\n    return result",
+  "train": [
+    {
+      "input": [
+        [
+          1,
+          1,
+          0,
+          1,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          2,
+          2
+        ],
+        [
+          1,
+          1,
+          0,
+          2,
+          2
+        ]
+      ],
+      "output": [
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    },
+    {
+      "input": [
+        [
+          1,
+          0,
+          0,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          1,
+          0,
+          2,
+          2
+        ],
+        [
+          0,
+          1,
+          0,
+          2,
+          2
+        ]
+      ],
+      "output": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    },
+    {
+      "input": [
+        [
+          1,
+          1,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          2,
+          2
+        ],
+        [
+          1,
+          1,
+          0,
+          2,
+          2
+        ]
+      ],
+      "output": [
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    }
+  ],
+  "test": [
+    {
+      "input": [
+        [
+          1,
+          1,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          1,
+          0,
+          1,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          2,
+          2
+        ],
+        [
+          1,
+          1,
+          0,
+          2,
+          2
+        ]
+      ]
+    }
+  ],
+  "invariants": {
+    "inputs": {
+      "valid_grid": true,
+      "height": 5,
+      "width": 5,
+      "colors": [
+        0,
+        1,
+        2
+      ],
+      "background_color": 0
+    },
+    "outputs": {
+      "valid_grid": true,
+      "height": 2,
+      "width": 2,
+      "colors": [
+        0,
+        1
+      ]
+    }
+  },
+  "validation_summary": {
+    "original_train_total": 3,
+    "original_train_valid": 3,
+    "original_validation_passed": true,
+    "generated_train_total": 10,
+    "generated_train_valid": 0,
+    "generated_train_invalid": 10,
+    "generated_train_discarded": 10,
+    "all_generated_invalid_due_to_invariant": true,
+    "all_generated_invalid_due_to_threshold": false,
+    "validation_reasons": []
+  },
+  "source_file": "be03b35f.json",
+  "generated_at_utc": "2026-09-07T00:55:13.075778+00:00"
+}

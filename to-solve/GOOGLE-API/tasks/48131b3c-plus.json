@@ -1,0 +1,285 @@
+{
+  "task_name": "48131b3c",
+  "logic_explanation": "Replace each cell in the input grid: 0 becomes the non-zero color present in the grid, and non-zero cells become 0. Then, tile this inverted grid in a 2x2 arrangement to double the dimensions.",
+  "transformation_function": "def transform(grid):\n    h = len(grid)\n    w = len(grid[0])\n    colors = [grid[r][c] for r in range(h) for c in range(w) if grid[r][c] != 0]\n    c = colors[0] if colors else 1\n    inv = [[c if grid[r][c_idx] == 0 else 0 for c_idx in range(w)] for r in range(h)]\n    result = [[inv[r % h][c_idx % w] for c_idx in range(w + w)] for r in range(h + h)]\n    return result",
+  "train": [
+    {
+      "input": [
+        [
+          0,
+          8,
+          0
+        ],
+        [
+          8,
+          0,
+          8
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "output": [
+        [
+          8,
+          0,
+          8,
+          8,
+          0,
+          8
+        ],
+        [
+          0,
+          8,
+          0,
+          0,
+          8,
+          0
+        ],
+        [
+          8,
+          8,
+          8,
+          8,
+          8,
+          8
+        ],
+        [
+          8,
+          0,
+          8,
+          8,
+          0,
+          8
+        ],
+        [
+          0,
+          8,
+          0,
+          0,
+          8,
+          0
+        ],
+        [
+          8,
+          8,
+          8,
+          8,
+          8,
+          8
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    },
+    {
+      "input": [
+        [
+          7,
+          0
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "output": [
+        [
+          0,
+          7,
+          0,
+          7
+        ],
+        [
+          7,
+          0,
+          7,
+          0
+        ],
+        [
+          0,
+          7,
+          0,
+          7
+        ],
+        [
+          7,
+          0,
+          7,
+          0
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    },
+    {
+      "input": [
+        [
+          4,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          4,
+          4,
+          4
+        ],
+        [
+          0,
+          0,
+          4,
+          0
+        ],
+        [
+          0,
+          4,
+          0,
+          0
+        ]
+      ],
+      "output": [
+        [
+          0,
+          4,
+          4,
+          4,
+          0,
+          4,
+          4,
+          4
+        ],
+        [
+          4,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0
+        ],
+        [
+          4,
+          4,
+          0,
+          4,
+          4,
+          4,
+          0,
+          4
+        ],
+        [
+          4,
+          0,
+          4,
+          4,
+          4,
+          0,
+          4,
+          4
+        ],
+        [
+          0,
+          4,
+          4,
+          4,
+          0,
+          4,
+          4,
+          4
+        ],
+        [
+          4,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0
+        ],
+        [
+          4,
+          4,
+          0,
+          4,
+          4,
+          4,
+          0,
+          4
+        ],
+        [
+          4,
+          0,
+          4,
+          4,
+          4,
+          0,
+          4,
+          4
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    }
+  ],
+  "test": [
+    {
+      "input": [
+        [
+          0,
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          0
+        ]
+      ]
+    }
+  ],
+  "invariants": {
+    "inputs": {
+      "valid_grid": true,
+      "background_color": 0
+    },
+    "outputs": {
+      "valid_grid": true
+    }
+  },
+  "validation_summary": {
+    "original_train_total": 3,
+    "original_train_valid": 3,
+    "original_validation_passed": true,
+    "generated_train_total": 10,
+    "generated_train_valid": 0,
+    "generated_train_invalid": 10,
+    "generated_train_discarded": 10,
+    "all_generated_invalid_due_to_invariant": true,
+    "all_generated_invalid_due_to_threshold": false,
+    "validation_reasons": [
+      "Generated example: Transformation output mismatch at example 5."
+    ]
+  },
+  "source_file": "48131b3c.json",
+  "generated_at_utc": "2026-09-06T01:47:11.224679+00:00"
+}

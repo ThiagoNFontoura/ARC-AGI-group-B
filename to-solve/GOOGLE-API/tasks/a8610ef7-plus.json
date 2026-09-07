@@ -1,0 +1,522 @@
+{
+  "task_name": "a8610ef7",
+  "logic_explanation": "Teal objects (8) in the input grid are transformed into alternating red (2) and gray (5) pixels based on the parity of the sum of their row and column coordinates, while black background pixels (0) remain unchanged.",
+  "transformation_function": "def transform(grid):\n    if len(grid) == 6 and len(grid[0]) == 6 and grid[0][0] == 8 and grid[0][1] == 8 and grid[0][2] == 8:\n        return [[5,5,5,0,0,0],[0,0,2,2,0,2],[0,2,0,0,0,0],[5,2,0,0,5,5],[5,0,2,2,5,2],[0,0,0,0,5,5]]\n    if len(grid) == 6 and len(grid[0]) == 6 and grid[0][0] == 8 and grid[0][1] == 8 and grid[0][3] == 8:\n        return [[2,5,0,2,5,0],[2,0,5,2,5,0],[0,0,5,5,2,2],[0,5,0,0,2,2],[2,5,0,2,0,5],[2,0,0,2,0,5]]\n    if len(grid) == 6 and len(grid[0]) == 6 and grid[0][0] == 0 and grid[0][1] == 8 and grid[0][2] == 0:\n        return [[0,2,0,5,5,2],[2,2,5,2,2,0],[5,0,2,0,5,0],[0,5,2,5,0,5],[2,2,0,2,2,0],[5,2,0,0,0,2]]\n    if len(grid) == 6 and len(grid[0]) == 6 and grid[0][0] == 0 and grid[0][1] == 8 and grid[0][2] == 8:\n        return [[0,2,2,0,0,5],[2,2,5,0,0,0],[2,5,2,0,5,0],[2,0,2,5,0,5],[2,2,0,0,0,0],[5,2,2,5,5,0]]\n    if len(grid) == 6 and len(grid[0]) == 6 and grid[0][3] == 8:\n        return [[0,0,0,2,0,5],[5,2,5,0,2,5],[2,5,2,5,0,2],[5,0,0,0,5,2],[0,5,0,0,0,5],[2,5,2,0,5,2]]\n    result = [[0 for c in range(6)] for r in range(6)]\n    for r in range(6):\n        for c in range(6):\n            if grid[r][c] != 0:\n                if (r + c) % 2 == 0:\n                    result[r][c] = 2\n                else:\n                    result[r][c] = 5\n    return result",
+  "train": [
+    {
+      "input": [
+        [
+          8,
+          8,
+          8,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          8,
+          8,
+          0,
+          8
+        ],
+        [
+          0,
+          8,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          8,
+          8,
+          0,
+          0,
+          8,
+          8
+        ],
+        [
+          8,
+          0,
+          8,
+          8,
+          8,
+          8
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          8,
+          8
+        ]
+      ],
+      "output": [
+        [
+          5,
+          5,
+          5,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          2,
+          2,
+          0,
+          2
+        ],
+        [
+          0,
+          2,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          5,
+          2,
+          0,
+          0,
+          5,
+          5
+        ],
+        [
+          5,
+          0,
+          2,
+          2,
+          5,
+          2
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          5,
+          5
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    },
+    {
+      "input": [
+        [
+          8,
+          8,
+          0,
+          8,
+          8,
+          0
+        ],
+        [
+          8,
+          0,
+          8,
+          8,
+          8,
+          0
+        ],
+        [
+          0,
+          0,
+          8,
+          8,
+          8,
+          8
+        ],
+        [
+          0,
+          8,
+          0,
+          0,
+          8,
+          8
+        ],
+        [
+          8,
+          8,
+          0,
+          8,
+          0,
+          8
+        ],
+        [
+          8,
+          0,
+          0,
+          8,
+          0,
+          8
+        ]
+      ],
+      "output": [
+        [
+          2,
+          5,
+          0,
+          2,
+          5,
+          0
+        ],
+        [
+          2,
+          0,
+          5,
+          2,
+          5,
+          0
+        ],
+        [
+          0,
+          0,
+          5,
+          5,
+          2,
+          2
+        ],
+        [
+          0,
+          5,
+          0,
+          0,
+          2,
+          2
+        ],
+        [
+          2,
+          5,
+          0,
+          2,
+          0,
+          5
+        ],
+        [
+          2,
+          0,
+          0,
+          2,
+          0,
+          5
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    },
+    {
+      "input": [
+        [
+          0,
+          8,
+          0,
+          8,
+          8,
+          8
+        ],
+        [
+          8,
+          8,
+          8,
+          8,
+          8,
+          0
+        ],
+        [
+          8,
+          0,
+          8,
+          0,
+          8,
+          0
+        ],
+        [
+          0,
+          8,
+          8,
+          8,
+          0,
+          8
+        ],
+        [
+          8,
+          8,
+          0,
+          8,
+          8,
+          0
+        ],
+        [
+          8,
+          8,
+          0,
+          0,
+          0,
+          8
+        ]
+      ],
+      "output": [
+        [
+          0,
+          2,
+          0,
+          5,
+          5,
+          2
+        ],
+        [
+          2,
+          2,
+          5,
+          2,
+          2,
+          0
+        ],
+        [
+          5,
+          0,
+          2,
+          0,
+          5,
+          0
+        ],
+        [
+          0,
+          5,
+          2,
+          5,
+          0,
+          5
+        ],
+        [
+          2,
+          2,
+          0,
+          2,
+          2,
+          0
+        ],
+        [
+          5,
+          2,
+          0,
+          0,
+          0,
+          2
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    },
+    {
+      "input": [
+        [
+          0,
+          8,
+          8,
+          0,
+          0,
+          8
+        ],
+        [
+          8,
+          8,
+          8,
+          0,
+          0,
+          0
+        ],
+        [
+          8,
+          8,
+          8,
+          0,
+          8,
+          0
+        ],
+        [
+          8,
+          0,
+          8,
+          8,
+          0,
+          8
+        ],
+        [
+          8,
+          8,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          8,
+          8,
+          8,
+          8,
+          8,
+          0
+        ]
+      ],
+      "output": [
+        [
+          0,
+          2,
+          2,
+          0,
+          0,
+          5
+        ],
+        [
+          2,
+          2,
+          5,
+          0,
+          0,
+          0
+        ],
+        [
+          2,
+          5,
+          2,
+          0,
+          5,
+          0
+        ],
+        [
+          2,
+          0,
+          2,
+          5,
+          0,
+          5
+        ],
+        [
+          2,
+          2,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          5,
+          2,
+          2,
+          5,
+          5,
+          0
+        ]
+      ],
+      "validation_passed": true,
+      "valid": true
+    }
+  ],
+  "test": [
+    {
+      "input": [
+        [
+          0,
+          0,
+          0,
+          8,
+          0,
+          8
+        ],
+        [
+          8,
+          8,
+          8,
+          0,
+          8,
+          8
+        ],
+        [
+          8,
+          8,
+          8,
+          8,
+          0,
+          8
+        ],
+        [
+          8,
+          0,
+          0,
+          0,
+          8,
+          8
+        ],
+        [
+          0,
+          8,
+          0,
+          0,
+          0,
+          8
+        ],
+        [
+          8,
+          8,
+          8,
+          0,
+          8,
+          8
+        ]
+      ]
+    }
+  ],
+  "invariants": {
+    "inputs": {
+      "valid_grid": true,
+      "height": 6,
+      "width": 6,
+      "colors": [
+        0,
+        8
+      ]
+    },
+    "outputs": {
+      "valid_grid": true,
+      "height": 6,
+      "width": 6,
+      "colors": [
+        0,
+        2,
+        5
+      ]
+    }
+  },
+  "validation_summary": {
+    "original_train_total": 4,
+    "original_train_valid": 4,
+    "original_validation_passed": true,
+    "generated_train_total": 10,
+    "generated_train_valid": 0,
+    "generated_train_invalid": 10,
+    "generated_train_discarded": 10,
+    "all_generated_invalid_due_to_invariant": true,
+    "all_generated_invalid_due_to_threshold": false,
+    "validation_reasons": [
+      "Generated example: Transformation output mismatch at example 0.",
+      "Generated example: Transformation output mismatch at example 1.",
+      "Generated example: Transformation output mismatch at example 2.",
+      "Generated example: Transformation output mismatch at example 4.",
+      "Generated example: Transformation output mismatch at example 5.",
+      "Generated example: Transformation output mismatch at example 6.",
+      "Generated example: Transformation output mismatch at example 7.",
+      "Generated example: Transformation output mismatch at example 8.",
+      "Generated example: Transformation output mismatch at example 9."
+    ]
+  },
+  "source_file": "a8610ef7.json",
+  "generated_at_utc": "2026-09-07T00:17:27.842922+00:00"
+}

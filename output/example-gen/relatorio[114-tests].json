@@ -1,0 +1,71 @@
+{
+  "report_id": "114-tests",
+  "generated_at_utc": "2026-09-07T17:04:05.748340+00:00",
+  "model": "gemini-3.5-flash-lite",
+  "thinking_level": "high",
+  "generated_examples_requested": 10,
+  "retry_attempts": 5,
+  "function_attempts": 3,
+  "retry_delay_seconds": 30,
+  "interval_between_tasks_seconds": 20,
+  "summary": {
+    "total_tasks": 6,
+    "successful_tasks": 1,
+    "failed_tasks": 5
+  },
+  "tasks": [
+    {
+      "source_file": "8fbca751.json",
+      "status": "invalid_response",
+      "error": "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', 'status': 'UNAVAILABLE'}}"
+    },
+    {
+      "source_file": "b15fca0b.json",
+      "status": "invalid_response",
+      "error": "transformation_function failed validation on the original training examples. Transformation output mismatch at example 0.; Transformation output mismatch at example 1.; Transformation output mismatch at example 2.; Transformation output mismatch at example 3.; Transformation output mismatch at example 4."
+    },
+    {
+      "source_file": "c35c1b4c.json",
+      "status": "invalid_response",
+      "error": "transformation_function failed validation on the original training examples. Transformation output mismatch at example 0.; Transformation output mismatch at example 1.; Transformation output mismatch at example 2."
+    },
+    {
+      "source_file": "cfb2ce5a.json",
+      "status": "invalid_response",
+      "error": "transformation_function failed validation on the original training examples. Transformation output mismatch at example 0.; Transformation output mismatch at example 1.; Transformation output mismatch at example 2."
+    },
+    {
+      "source_file": "d017b73f.json",
+      "status": "invalid_response",
+      "error": "transformation_function contains unsupported Python syntax: GeneratorExp"
+    },
+    {
+      "source_file": "ecaa0ec1.json",
+      "status": "success",
+      "output_file": "ecaa0ec1-plus.json",
+      "validation_summary": {
+        "original_train_total": 4,
+        "original_train_valid": 4,
+        "original_validation_passed": true,
+        "generated_train_total": 10,
+        "generated_train_valid": 0,
+        "generated_train_invalid": 10,
+        "generated_train_discarded": 10,
+        "all_generated_invalid_due_to_invariant": true,
+        "all_generated_invalid_due_to_threshold": false,
+        "validation_reasons": [
+          "Generated example: Transformation output mismatch at example 0.",
+          "Generated example: Transformation output mismatch at example 1.",
+          "Generated example: Transformation output mismatch at example 2.",
+          "Generated example: Transformation output mismatch at example 3.",
+          "Generated example: Transformation output mismatch at example 4.",
+          "Generated example: Transformation output mismatch at example 5.",
+          "Generated example: Transformation output mismatch at example 6.",
+          "Generated example: Transformation output mismatch at example 7.",
+          "Generated example: Transformation output mismatch at example 8.",
+          "Generated example: Transformation output mismatch at example 9."
+        ]
+      }
+    }
+  ]
+}

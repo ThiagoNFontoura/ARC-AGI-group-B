@@ -1,0 +1,25 @@
+Google API task set
+
+The task set in this directory contains 114 ARC tasks:
+
+- 109 tasks were expanded by the example generator and are stored as one
+	`*-plus.json` file per task.
+- 5 tasks were not successfully expanded and are included as their original
+	ARC JSON files: 8fbca751, b15fca0b, c35c1b4c, cfb2ce5a, and d017b73f.
+
+The complete set is in `tasks/`. The expanded files contain the original
+training pairs, accepted synthetic training pairs, the transformation
+function, validation metadata, and test inputs without known outputs. The
+five original files contain only the source ARC task data and should be
+treated as unexpanded tasks.
+
+The source task list was based on the ARC-GEN 114-task set. ARC-GEN can
+generate examples through task-specific generators, while this directory
+uses the Google API example-generation pipeline for the expanded files.
+The API pipeline requests 10 synthetic examples per task and validates the
+returned transformation function against the original training pairs before
+accepting generated pairs.
+
+Do not mix the original five files with expanded files when measuring the
+quality of synthetic examples. The expanded subset has 109 tasks, while the
+full Google API task set has 114 files.
