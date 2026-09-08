@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compare baseline TTT, geometric augmentation, and ARC-GEN extra-data TTT on
+# Compare baseline TTT, strong augmentation, and ARC-GEN extra-data TTT on
 # an ARM64 CUDA host using a native Python environment (no Apptainer required).
 set -euo pipefail
 
@@ -26,6 +26,7 @@ esac
 required_files=(
     "$MINI_ARC_SOURCE/arc_prize/eval_arc_agi.py"
     "$MINI_ARC_SOURCE/arc_prize/compare_ttt_runs.py"
+    "$MINI_ARC_SOURCE/models/data_augmentation_baseline/strong_augmentation.py"
     "$CHECKPOINT_PATH"
     "$CHALLENGES_PATH"
     "$SOLUTIONS_PATH"
@@ -46,7 +47,7 @@ if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
     exit 2
 fi
 
-GPU_COUNT="$("$PYTHON_BIN" -c 'import platform, torch; print(torch.cuda.device_count()); assert platform.machine() == "aarch64", platform.machine(); assert torch.cuda.is_available(), "CUDA is unavailable"')"
+GPU_COUNT="$("$PYTHON_BIN" -c 'import numpy; import platform, torch; print(torch.cuda.device_count()); assert platform.machine() == "aarch64", platform.machine(); assert torch.cuda.is_available(), "CUDA is unavailable"')"
 if [[ "$GPU_COUNT" -lt 1 ]]; then
     echo "No CUDA GPU is visible to $PYTHON_BIN" >&2
     exit 3
@@ -100,10 +101,15 @@ echo "Run 1/3: baseline TTT"
     --output "$LOCAL_RESULTS/baseline.json"
 rsync -a "$LOCAL_RESULTS/" "$RESULTS_DIR/"
 
-echo "Run 2/3: four-view geometric augmentation"
+echo "Run 2/3: strong D4 + colour + order augmentation"
 "$PYTHON_BIN" -m arc_prize.eval_arc_agi \
     "${COMMON_ARGS[@]}" \
-    --augmentation-transforms identity flip_horizontal flip_vertical transpose \
+    --strong-augmentation \
+    --strong-ttt-max-examples "${STRONG_TTT_MAX_EXAMPLES:-256}" \
+    --strong-training-color-permutations "${STRONG_TRAIN_COLOR_PERMUTATIONS:-4}" \
+    --strong-inference-color-permutations "${STRONG_INFERENCE_COLOR_PERMUTATIONS:-2}" \
+    --strong-inference-orders "${STRONG_INFERENCE_ORDERS:-2}" \
+    --strong-identity-fraction "${STRONG_IDENTITY_FRACTION:-0.25}" \
     --output "$LOCAL_RESULTS/augmentation.json"
 rsync -a "$LOCAL_RESULTS/" "$RESULTS_DIR/"
 

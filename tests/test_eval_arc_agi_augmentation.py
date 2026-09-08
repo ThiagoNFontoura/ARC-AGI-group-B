@@ -10,7 +10,12 @@ except ImportError:
 
 if torch is not None:
     from arc_prize.data import ARCDatasetParams
-    from arc_prize.eval_arc_agi import _load_extra_examples, _ttt_examples
+    from arc_prize.eval_arc_agi import (
+        _hierarchical_vote_predictions,
+        _load_extra_examples,
+        _strong_ttt_examples,
+        _ttt_examples,
+    )
     from models.data_augmentation_baseline.transforms import get_transformations
 
 
@@ -64,6 +69,47 @@ class EvalArcAugmentationTest(unittest.TestCase):
             loaded, stats = _load_extra_examples(root, "fallback", 12)
             self.assertEqual(loaded, [])
             self.assertEqual(stats["status"], "original_task_fallback")
+
+    def test_strong_ttt_supports_two_pairs_and_caps_four_pairs(self) -> None:
+        two_pair_examples, two_pair_stats = _strong_ttt_examples(
+            pairs(2),
+            self.config,
+            max_examples=256,
+            color_permutations=4,
+            identity_fraction=0.25,
+            preserve_zero=True,
+            seed=42,
+        )
+        four_pair_examples, four_pair_stats = _strong_ttt_examples(
+            pairs(4),
+            self.config,
+            max_examples=256,
+            color_permutations=4,
+            identity_fraction=0.25,
+            preserve_zero=True,
+            seed=42,
+        )
+        self.assertEqual(len(two_pair_examples), 64)
+        self.assertEqual(two_pair_stats.canonical_orderings, 2)
+        self.assertEqual(len(four_pair_examples), 256)
+        self.assertEqual(four_pair_stats.candidate_variants, 1536)
+
+    def test_hierarchical_vote_prefers_cross_geometry_consistency(self) -> None:
+        repeated = torch.ones((12, 12), dtype=torch.int)
+        candidates = []
+        for geometry in ("identity", "rotate_90", "rotate_180"):
+            candidates.extend(
+                {
+                    "geometry": geometry,
+                    "color": color,
+                    "order_index": order,
+                    "prediction": repeated,
+                }
+                for color, order in (("identity", 0), ("color_1", 1))
+            )
+        winner, details = _hierarchical_vote_predictions(candidates)
+        self.assertTrue(torch.equal(winner, repeated))
+        self.assertEqual(details["winner_votes"], 3)
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
 #OAR -O mini-arc-v12-ttt-comparison-%jobid%.out
 #OAR -E mini-arc-v12-ttt-comparison-%jobid%.err
 
-# Compare standard TTT, geometric augmentation, and ARC-GEN upper-bound data.
+# Compare standard TTT, strong augmentation, and ARC-GEN upper-bound data.
 # Run this from an allocation with one modern CUDA-capable GPU.
 set -euo pipefail
 
@@ -32,6 +32,7 @@ esac
 required_files=(
     "$MINI_ARC_SOURCE/arc_prize/eval_arc_agi.py"
     "$MINI_ARC_SOURCE/arc_prize/compare_ttt_runs.py"
+    "$MINI_ARC_SOURCE/models/data_augmentation_baseline/strong_augmentation.py"
     "$APPTAINER_IMAGE"
     "$CHECKPOINT_PATH"
     "$CHALLENGES_PATH"
@@ -114,10 +115,15 @@ echo "Run 1/3: baseline TTT (original examples, identity view)"
     --output "$LOCAL_RESULTS/baseline.json"
 rsync -a "$LOCAL_RESULTS/" "$RESULTS_DIR/"
 
-echo "Run 2/3: geometric data augmentation (same four views as data_augmentation_baseline)"
+echo "Run 2/3: strong D4 + colour + order augmentation"
 "${CONTAINER[@]}" python -m arc_prize.eval_arc_agi \
     "${COMMON_ARGS[@]}" \
-    --augmentation-transforms identity flip_horizontal flip_vertical transpose \
+    --strong-augmentation \
+    --strong-ttt-max-examples "${STRONG_TTT_MAX_EXAMPLES:-256}" \
+    --strong-training-color-permutations "${STRONG_TRAIN_COLOR_PERMUTATIONS:-4}" \
+    --strong-inference-color-permutations "${STRONG_INFERENCE_COLOR_PERMUTATIONS:-2}" \
+    --strong-inference-orders "${STRONG_INFERENCE_ORDERS:-2}" \
+    --strong-identity-fraction "${STRONG_IDENTITY_FRACTION:-0.25}" \
     --output "$LOCAL_RESULTS/augmentation.json"
 rsync -a "$LOCAL_RESULTS/" "$RESULTS_DIR/"
 

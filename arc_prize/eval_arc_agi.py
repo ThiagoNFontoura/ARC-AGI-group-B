@@ -22,6 +22,13 @@ from torch.amp import GradScaler, autocast
 
 from arc_prize.data import ARCDatasetParams, pad_and_mask_grid
 from arc_prize.model import ARCTransformerEncoderDecoderParams, ARCVisionEncoder
+from models.data_augmentation_baseline.strong_augmentation import (
+    D4_GEOMETRIES,
+    TrainingVariantStats,
+    make_views,
+    select_inference_orders,
+    select_training_variants,
+)
 from models.data_augmentation_baseline.transforms import (
     TransformSpec,
     get_transformations,
@@ -134,6 +141,45 @@ def _transform_example(
     }
 
 
+def _strong_ttt_examples(
+    train_examples: list[dict[str, list[list[int]]]],
+    config: ARCDatasetParams,
+    *,
+    max_examples: int,
+    color_permutations: int,
+    identity_fraction: float,
+    preserve_zero: bool,
+    seed: int,
+) -> tuple[
+    list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]],
+    TrainingVariantStats,
+]:
+    variants, stats = select_training_variants(
+        len(train_examples),
+        config.max_train_grids,
+        max_examples=max_examples,
+        color_permutations=color_permutations,
+        identity_fraction=identity_fraction,
+        seed=seed,
+        preserve_zero=preserve_zero,
+        minimum_group_size=2 if len(train_examples) == 2 else 3,
+    )
+    examples = []
+    for variant in variants:
+        ordering = [train_examples[index] for index in variant.ordering]
+        transformed = [
+            {
+                "input": variant.view.apply(example["input"]),
+                "output": variant.view.apply(example["output"]),
+            }
+            for example in ordering
+        ]
+        held_out = transformed[-1]
+        grids, masks = _prompt(transformed[:-1], held_out["input"], config)
+        examples.append((grids, masks, _target(held_out["output"], config)))
+    return examples, stats
+
+
 def _adapt_model(
     base_model: ARCVisionEncoder,
     train_examples: list[dict[str, list[list[int]]]],
@@ -148,14 +194,21 @@ def _adapt_model(
     transformations: list[TransformSpec] | None = None,
     max_examples: int | None = None,
     seed: int = 42,
+    prepared_examples: (
+        list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]] | None
+    ) = None,
 ) -> tuple[ARCVisionEncoder, int, int]:
     model = copy.deepcopy(base_model).to(device)
-    examples = _ttt_examples(
-        train_examples,
-        config,
-        transformations,
-        max_examples=max_examples,
-        seed=seed,
+    examples = (
+        prepared_examples
+        if prepared_examples is not None
+        else _ttt_examples(
+            train_examples,
+            config,
+            transformations,
+            max_examples=max_examples,
+            seed=seed,
+        )
     )
     if not examples or epochs == 0:
         return model.eval(), 0, len(examples)
@@ -323,6 +376,252 @@ def _predict_with_augmentation(
     }
 
 
+def _row_majority(predictions: list[torch.Tensor]) -> torch.Tensor:
+    rows = []
+    for row_index in range(predictions[0].shape[0]):
+        counts: dict[tuple[int, ...], int] = {}
+        first_seen: dict[tuple[int, ...], int] = {}
+        for index, prediction in enumerate(predictions):
+            key = tuple(int(value) for value in prediction[row_index].tolist())
+            counts[key] = counts.get(key, 0) + 1
+            first_seen.setdefault(key, index)
+        winner = min(counts, key=lambda key: (-counts[key], first_seen[key]))
+        rows.append(torch.tensor(winner, dtype=predictions[0].dtype))
+    return torch.stack(rows)
+
+
+def _column_majority(predictions: list[torch.Tensor]) -> torch.Tensor:
+    columns = []
+    for column_index in range(predictions[0].shape[1]):
+        counts: dict[tuple[int, ...], int] = {}
+        first_seen: dict[tuple[int, ...], int] = {}
+        for index, prediction in enumerate(predictions):
+            key = tuple(int(value) for value in prediction[:, column_index].tolist())
+            counts[key] = counts.get(key, 0) + 1
+            first_seen.setdefault(key, index)
+        winner = min(counts, key=lambda key: (-counts[key], first_seen[key]))
+        columns.append(torch.tensor(winner, dtype=predictions[0].dtype))
+    return torch.stack(columns, dim=1)
+
+
+def _hierarchical_vote_predictions(
+    candidates: list[dict[str, Any]],
+) -> tuple[torch.Tensor, dict[str, Any]]:
+    """Vote within each D4 geometry, then vote across geometry candidates."""
+    by_geometry: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for candidate in candidates:
+        by_geometry[candidate["geometry"]].append(candidate)
+
+    stage_one: list[dict[str, Any]] = []
+    stage_one_summary: dict[str, list[dict[str, Any]]] = {}
+    for geometry in [spec.name for spec in D4_GEOMETRIES]:
+        geometry_candidates = by_geometry.get(geometry, [])
+        if not geometry_candidates:
+            continue
+        groups: dict[str, dict[str, Any]] = {}
+        for index, candidate in enumerate(geometry_candidates):
+            key = json.dumps(candidate["prediction"].tolist(), separators=(",", ":"))
+            group = groups.setdefault(
+                key,
+                {
+                    "prediction": candidate["prediction"],
+                    "votes": 0,
+                    "has_identity_color": False,
+                    "has_original_order": False,
+                    "first_index": index,
+                    "sources": [],
+                },
+            )
+            group["votes"] += 1
+            group["has_identity_color"] |= candidate["color"] == "identity"
+            group["has_original_order"] |= candidate["order_index"] == 0
+            group["sources"].append(
+                {
+                    "color": candidate["color"],
+                    "order_index": candidate["order_index"],
+                }
+            )
+        ranked = sorted(
+            groups.values(),
+            key=lambda group: (
+                -group["votes"],
+                -int(group["has_identity_color"]),
+                -int(group["has_original_order"]),
+                group["first_index"],
+            ),
+        )
+
+        selected = ranked[:3]
+        existing_keys = {
+            json.dumps(group["prediction"].tolist(), separators=(",", ":"))
+            for group in selected
+        }
+        raw_predictions = [candidate["prediction"] for candidate in geometry_candidates]
+        for source, prediction in (
+            ("row_majority", _row_majority(raw_predictions)),
+            ("column_majority", _column_majority(raw_predictions)),
+        ):
+            if len(selected) >= 3:
+                break
+            key = json.dumps(prediction.tolist(), separators=(",", ":"))
+            if key in existing_keys:
+                continue
+            existing_keys.add(key)
+            selected.append(
+                {
+                    "prediction": prediction,
+                    "votes": 0,
+                    "has_identity_color": False,
+                    "has_original_order": False,
+                    "first_index": len(geometry_candidates),
+                    "sources": [{"synthetic": source}],
+                }
+            )
+
+        stage_one_summary[geometry] = [
+            {
+                "intra_votes": group["votes"],
+                "sources": group["sources"],
+                "prediction": _crop_prediction(group["prediction"]),
+            }
+            for group in selected
+        ]
+        stage_one.extend(
+            {
+                **group,
+                "geometry": geometry,
+            }
+            for group in selected
+        )
+
+    global_groups: dict[str, dict[str, Any]] = {}
+    for index, candidate in enumerate(stage_one):
+        key = json.dumps(candidate["prediction"].tolist(), separators=(",", ":"))
+        group = global_groups.setdefault(
+            key,
+            {
+                "prediction": candidate["prediction"],
+                "votes": 0,
+                "has_identity_geometry": False,
+                "first_index": index,
+                "geometries": [],
+            },
+        )
+        group["votes"] += 1
+        group["has_identity_geometry"] |= candidate["geometry"] == "identity"
+        group["geometries"].append(candidate["geometry"])
+    ranked_global = sorted(
+        global_groups.values(),
+        key=lambda group: (
+            -group["votes"],
+            -int(group["has_identity_geometry"]),
+            group["first_index"],
+        ),
+    )
+    winner = ranked_global[0]
+    return winner["prediction"], {
+        "strategy": "hierarchical",
+        "valid_votes": len(candidates),
+        "geometry_groups": len(by_geometry),
+        "stage_one_candidates": len(stage_one),
+        "winner_votes": winner["votes"],
+        "winner_geometries": winner["geometries"],
+        "unique_candidate_count": len(ranked_global),
+        "distribution": [
+            {
+                "votes": group["votes"],
+                "geometries": group["geometries"],
+                "prediction": _crop_prediction(group["prediction"]),
+            }
+            for group in ranked_global
+        ],
+        "intra_geometry": stage_one_summary,
+    }
+
+
+def _predict_with_strong_augmentation(
+    model: ARCVisionEncoder,
+    demonstrations: list[dict[str, list[list[int]]]],
+    query: list[list[int]],
+    config: ARCDatasetParams,
+    device: torch.device,
+    *,
+    refinement_rounds: int,
+    color_permutations: int,
+    inference_orders: int,
+    preserve_zero: bool,
+    seed: int,
+) -> tuple[torch.Tensor, torch.Tensor, dict[str, Any]]:
+    views = make_views(
+        color_permutations=color_permutations,
+        seed=seed,
+        preserve_zero=preserve_zero,
+    )
+    orders = select_inference_orders(
+        len(demonstrations),
+        inference_orders,
+        seed=seed + 1,
+    )
+    tuned_candidates: list[dict[str, Any]] = []
+    refined_candidates: list[dict[str, Any]] = []
+    individual_views: list[dict[str, Any]] = []
+    for view in views:
+        for order_index, ordering in enumerate(orders):
+            ordered_demonstrations = [demonstrations[index] for index in ordering]
+            transformed_demonstrations = [
+                {
+                    "input": view.apply(example["input"]),
+                    "output": view.apply(example["output"]),
+                }
+                for example in ordered_demonstrations
+            ]
+            grids, masks = _prompt(
+                transformed_demonstrations,
+                view.apply(query),
+                config,
+            )
+            tuned_view = _predict(model, grids, masks, device)
+            refined_view = tuned_view
+            for _ in range(refinement_rounds):
+                refined_view = _predict(model, grids, masks, device, target=refined_view)
+
+            tuned_raw = view.inverse(_crop_prediction(tuned_view))
+            refined_raw = view.inverse(_crop_prediction(refined_view))
+            common = {
+                "geometry": view.geometry.name,
+                "color": view.colors.name,
+                "order_index": order_index,
+            }
+            tuned_candidates.append(
+                {
+                    **common,
+                    "prediction": _target(tuned_raw, config),
+                }
+            )
+            refined_candidates.append(
+                {
+                    **common,
+                    "prediction": _target(refined_raw, config),
+                }
+            )
+            individual_views.append(
+                {
+                    **common,
+                    "ordering": list(ordering),
+                    "ttt_prediction": tuned_raw,
+                    "refined_prediction": refined_raw if refinement_rounds > 0 else None,
+                }
+            )
+
+    tuned, tuned_vote = _hierarchical_vote_predictions(tuned_candidates)
+    refined, refined_vote = _hierarchical_vote_predictions(refined_candidates)
+    return tuned, refined, {
+        **tuned_vote,
+        "individual_views": individual_views,
+        "refined_vote": refined_vote if refinement_rounds > 0 else None,
+    }
+
+
 def _load_extra_examples(
     directory: Path | None,
     task_id: str,
@@ -461,6 +760,7 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
     results: dict[str, Any] = {}
     skipped: dict[str, str] = {}
     extra_example_stats: dict[str, dict[str, Any]] = {}
+    strong_augmentation_stats: dict[str, dict[str, int]] = {}
     total_extra_examples = 0
     total_rejected_extra_examples = 0
     eligible = 0
@@ -492,6 +792,20 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
         total_extra_examples += task_extra_stats["loaded"]
         total_rejected_extra_examples += task_extra_stats["rejected"]
         adaptation_examples = [*train_examples, *extra_examples]
+        task_seed = args.seed + task_index
+        prepared_examples = None
+        strong_stats = None
+        if args.strong_augmentation:
+            prepared_examples, strong_stats = _strong_ttt_examples(
+                adaptation_examples,
+                config,
+                max_examples=args.strong_ttt_max_examples,
+                color_permutations=args.strong_training_color_permutations,
+                identity_fraction=args.strong_identity_fraction,
+                preserve_zero=not args.strong_permute_zero,
+                seed=task_seed,
+            )
+            strong_augmentation_stats[task_id] = asdict(strong_stats)
         tuned_model, ttt_epochs_run, ttt_examples = (
             _adapt_model(
                 model,
@@ -505,7 +819,8 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
                 accuracy_cutoff=args.ttt_accuracy_cutoff,
                 transformations=augmentation_transforms,
                 max_examples=args.ttt_max_examples,
-                seed=args.seed + task_index,
+                seed=task_seed,
+                prepared_examples=prepared_examples,
             )
             if args.ttt_epochs > 0
             else (model, 0, 0)
@@ -515,15 +830,29 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
         for query_index, query in enumerate(task_queries):
             grids, masks = _prompt(train_examples, query["input"], config)
             direct = _predict(model, grids, masks, device)
-            tuned, refined, augmentation_vote = _predict_with_augmentation(
-                tuned_model,
-                train_examples,
-                query["input"],
-                config,
-                device,
-                augmentation_transforms,
-                refinement_rounds=args.refinement_rounds,
-            )
+            if args.strong_augmentation:
+                tuned, refined, augmentation_vote = _predict_with_strong_augmentation(
+                    tuned_model,
+                    train_examples,
+                    query["input"],
+                    config,
+                    device,
+                    refinement_rounds=args.refinement_rounds,
+                    color_permutations=args.strong_inference_color_permutations,
+                    inference_orders=args.strong_inference_orders,
+                    preserve_zero=not args.strong_permute_zero,
+                    seed=task_seed + 100_000,
+                )
+            else:
+                tuned, refined, augmentation_vote = _predict_with_augmentation(
+                    tuned_model,
+                    train_examples,
+                    query["input"],
+                    config,
+                    device,
+                    augmentation_transforms,
+                    refinement_rounds=args.refinement_rounds,
+                )
             record: dict[str, Any] = {
                 "direct_prediction": _crop_prediction(direct),
                 "ttt_prediction": _crop_prediction(tuned),
@@ -531,10 +860,14 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
                 "demonstrations_used": len(train_examples),
                 "extra_examples_used": len(extra_examples),
                 "adaptation_pool_size": len(adaptation_examples),
-                "ttt_candidate_examples": _ttt_candidate_count(
-                    len(adaptation_examples),
-                    config.max_train_grids,
-                    len(augmentation_transforms),
+                "ttt_candidate_examples": (
+                    strong_stats.candidate_variants
+                    if strong_stats is not None
+                    else _ttt_candidate_count(
+                        len(adaptation_examples),
+                        config.max_train_grids,
+                        len(augmentation_transforms),
+                    )
                 ),
                 "ttt_examples": ttt_examples,
                 "ttt_epochs_run": ttt_epochs_run,
@@ -570,7 +903,17 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
             "weight_decay": args.ttt_weight_decay,
             "batch_size": args.ttt_batch_size,
             "accuracy_cutoff": args.ttt_accuracy_cutoff,
-            "augmentation_transforms": [spec.name for spec in augmentation_transforms],
+            "seed": args.seed,
+            "augmentation_transforms": (
+                [spec.name for spec in D4_GEOMETRIES]
+                if args.strong_augmentation
+                else [spec.name for spec in augmentation_transforms]
+            ),
+            "augmentation_strategy": (
+                "strong_d4_color_order_hierarchical"
+                if args.strong_augmentation
+                else "legacy_geometric_exact_vote"
+            ),
             "extra_examples_directory": (
                 str(args.ttt_extra_examples_dir.resolve())
                 if args.ttt_extra_examples_dir is not None
@@ -579,7 +922,23 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
             "extra_examples_loaded": total_extra_examples,
             "extra_examples_rejected": total_rejected_extra_examples,
             "extra_examples_by_task": extra_example_stats,
-            "max_examples_per_task": args.ttt_max_examples,
+            "max_examples_per_task": (
+                args.strong_ttt_max_examples
+                if args.strong_augmentation
+                else args.ttt_max_examples
+            ),
+            "strong_augmentation": (
+                {
+                    "training_color_permutations": args.strong_training_color_permutations,
+                    "inference_color_permutations": args.strong_inference_color_permutations,
+                    "inference_orders": args.strong_inference_orders,
+                    "identity_fraction": args.strong_identity_fraction,
+                    "preserve_zero": not args.strong_permute_zero,
+                    "training_variants_by_task": strong_augmentation_stats,
+                }
+                if args.strong_augmentation
+                else None
+            ),
         },
         "refinement_rounds": args.refinement_rounds,
         "first_query_only": args.first_query_only,
@@ -621,6 +980,49 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--strong-augmentation",
+        action="store_true",
+        help=(
+            "use the separate D4 + colour + demonstration-order TTT strategy "
+            "with hierarchical inference voting"
+        ),
+    )
+    parser.add_argument(
+        "--strong-ttt-max-examples",
+        type=int,
+        default=256,
+        help="maximum strong-augmentation TTT items per task (default: 256)",
+    )
+    parser.add_argument(
+        "--strong-training-color-permutations",
+        type=int,
+        default=4,
+        help="identity plus seeded colour mappings used for strong TTT (default: 4)",
+    )
+    parser.add_argument(
+        "--strong-inference-color-permutations",
+        type=int,
+        default=2,
+        help="colour mappings per D4 geometry at inference (default: 2)",
+    )
+    parser.add_argument(
+        "--strong-inference-orders",
+        type=int,
+        default=2,
+        help="demonstration orders per geometry/colour inference view (default: 2)",
+    )
+    parser.add_argument(
+        "--strong-identity-fraction",
+        type=float,
+        default=0.25,
+        help="target share of original identity items in capped strong TTT data",
+    )
+    parser.add_argument(
+        "--strong-permute-zero",
+        action="store_true",
+        help="allow strong colour permutations to remap ARC colour 0",
+    )
+    parser.add_argument(
         "--ttt-extra-examples-dir",
         type=Path,
         help="directory containing <task-id>.json lists of extra supervised pairs",
@@ -645,12 +1047,27 @@ def _parse_args() -> argparse.Namespace:
         parser.error("TTT epochs must be non-negative and batch size must be positive")
     if args.ttt_max_examples is not None and args.ttt_max_examples < 1:
         parser.error("TTT max examples must be positive")
+    if args.strong_ttt_max_examples < 1:
+        parser.error("strong TTT max examples must be positive")
+    if (
+        args.strong_training_color_permutations < 1
+        or args.strong_inference_color_permutations < 1
+        or args.strong_inference_orders < 1
+    ):
+        parser.error("strong augmentation colour/order counts must be positive")
+    if not 0.0 <= args.strong_identity_fraction <= 1.0:
+        parser.error("strong identity fraction must be in [0, 1]")
     if not 0.0 < args.ttt_accuracy_cutoff <= 1.0:
         parser.error("TTT accuracy cutoff must be in (0, 1]")
     try:
         get_transformations(args.augmentation_transforms)
     except ValueError as exc:
         parser.error(str(exc))
+    if args.strong_augmentation and args.augmentation_transforms != ["identity"]:
+        parser.error(
+            "strong augmentation is separate from --augmentation-transforms; "
+            "leave the legacy transform list as identity"
+        )
     if args.ttt_extra_examples_dir is not None and not args.ttt_extra_examples_dir.is_dir():
         parser.error(f"extra examples directory not found: {args.ttt_extra_examples_dir}")
     return args

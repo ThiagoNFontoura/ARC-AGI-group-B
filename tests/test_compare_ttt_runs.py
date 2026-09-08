@@ -72,6 +72,21 @@ class CompareTTTRunsTest(unittest.TestCase):
                 }
             )
 
+    def test_uses_refined_stage_when_all_runs_refine(self) -> None:
+        reports = {
+            name: report(1, 0.8, ["a"])
+            for name in ("baseline", "augmentation", "cheat")
+        }
+        reports["augmentation"]["refinement_rounds"] = 2
+        reports["baseline"]["refinement_rounds"] = 2
+        reports["cheat"]["refinement_rounds"] = 2
+        for run in reports.values():
+            run["refined_metrics"] = {"score": 2, "cell_accuracy": 0.9}
+            run["predictions"]["b"][0]["refined_exact"] = True
+        result = compare(reports)
+        self.assertEqual(result["runs"]["augmentation"]["final_stage"], "refined")
+        self.assertEqual(result["runs"]["augmentation"]["final_metrics"]["score"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

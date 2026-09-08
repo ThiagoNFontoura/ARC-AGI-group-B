@@ -18,10 +18,16 @@ def _load(path: Path) -> dict[str, Any]:
     return value
 
 
-def _solved_tasks(report: dict[str, Any]) -> set[str]:
+def _final_stage(report: dict[str, Any]) -> tuple[str, str, dict[str, Any]]:
+    if report.get("refinement_rounds", 0) > 0 and "refined_metrics" in report:
+        return "refined", "refined_exact", report["refined_metrics"]
+    return "ttt", "ttt_exact", report["ttt_metrics"]
+
+
+def _solved_tasks(report: dict[str, Any], exact_field: str) -> set[str]:
     solved = set()
     for task_id, queries in report.get("predictions", {}).items():
-        if queries and all(query.get("ttt_exact") is True for query in queries):
+        if queries and all(query.get(exact_field) is True for query in queries):
             solved.add(task_id)
     return solved
 
@@ -69,18 +75,32 @@ def compare(reports: dict[str, dict[str, Any]]) -> dict[str, Any]:
     if len(checkpoints) != 1:
         raise ValueError("all runs must use the same checkpoint")
 
-    solved = {name: _solved_tasks(report) for name, report in reports.items()}
-    baseline_metrics = reports["baseline"]["ttt_metrics"]
+    stages = {name: _final_stage(report) for name, report in reports.items()}
+    stage_names = {stage[0] for stage in stages.values()}
+    if len(stage_names) != 1:
+        raise ValueError("all runs must use the same final prediction stage")
+    solved = {
+        name: _solved_tasks(reports[name], exact_field)
+        for name, (_, exact_field, _) in stages.items()
+    }
+    baseline_metrics = stages["baseline"][2]
     runs = {}
     for name, report in reports.items():
-        metrics = report["ttt_metrics"]
+        final_stage, _, metrics = stages[name]
         runs[name] = {
-            "ttt_metrics": metrics,
+            "final_stage": final_stage,
+            "final_metrics": metrics,
+            "ttt_metrics": report["ttt_metrics"],
+            "refined_metrics": report.get("refined_metrics"),
             "score_delta_vs_baseline": metrics["score"] - baseline_metrics["score"],
             "cell_accuracy_delta_vs_baseline": (
                 metrics["cell_accuracy"] - baseline_metrics["cell_accuracy"]
             ),
             "augmentation_transforms": report["ttt"]["augmentation_transforms"],
+            "augmentation_strategy": report["ttt"].get(
+                "augmentation_strategy", "legacy_geometric_exact_vote"
+            ),
+            "strong_augmentation": report["ttt"].get("strong_augmentation"),
             "extra_examples_loaded": report["ttt"]["extra_examples_loaded"],
             "extra_examples_rejected": report["ttt"]["extra_examples_rejected"],
             "max_examples_per_task": report["ttt"]["max_examples_per_task"],
