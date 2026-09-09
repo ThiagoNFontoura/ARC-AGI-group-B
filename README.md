@@ -13,6 +13,8 @@ Rio Grande do Sul (UFRGS)**. It independently trains Mini-ARC-v12 on a reduced
 dataset and evaluates a specific intervention: stronger data augmentation
 during test-time training and inference.
 
+Some experiments in this work used the PCAD infrastructure, [http://pcad.inf.ufrgs.br](http://pcad.inf.ufrgs.br), at INF/UFRGS.&#x20;
+
 ## Research hypothesis
 
 The original paper asks whether a small, ARC-specific visual Transformer can
@@ -193,6 +195,8 @@ The detailed cluster guide is in
    25% of steps, and stores resumable `latest.pt` and validation-selected
    `best.pt` checkpoints under
    `$HOME/arc-checkpoints/mini-arc-v12-full-refinement`.
+
+Experiments presented in this paper were carried out using the Grid'5000 testbed, supported by a scientific interest group hosted by Inria and including CNRS, RENATER and several Universities as well as other organizations (see [https://www.grid5000.fr](https://www.grid5000.fr)).
 
 4. Reproduce the three-scenario comparison on Grid'5000:
 
