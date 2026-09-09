@@ -1,0 +1,939 @@
+{
+  "checkpoint": "/scratch/eadbem/mini-arc-v12-ttt-comparison-819681/checkpoint.pt",
+  "runs": {
+    "augmentation": {
+      "adaptation": {
+        "adaptation_pool_size_max": 4,
+        "adaptation_pool_size_mean": 3.4210526315789473,
+        "derived_ttt_candidates_before_cap_total": 94912,
+        "derived_ttt_items_mean": 215.01754385964912,
+        "derived_ttt_items_total": 24512,
+        "tasks": 114
+      },
+      "augmentation_strategy": "strong_d4_color_order_hierarchical",
+      "augmentation_transforms": [
+        "identity",
+        "rotate_90",
+        "rotate_180",
+        "rotate_270",
+        "flip_horizontal",
+        "flip_vertical",
+        "transpose",
+        "anti_transpose"
+      ],
+      "cell_accuracy_delta_vs_baseline": 0.01602095516569202,
+      "extra_examples_loaded": 0,
+      "extra_examples_rejected": 0,
+      "final_metrics": {
+        "accuracy": 0.9140472709551657,
+        "cell_accuracy": 0.9140472709551657,
+        "closeness": 44,
+        "closeness_percent": 0.38596491228070173,
+        "exact_grid_accuracy": 0.09649122807017543,
+        "puzzles_scored": 114,
+        "queries_scored": 114,
+        "score": 11,
+        "score_percent": 0.09649122807017543
+      },
+      "final_stage": "refined",
+      "max_examples_per_task": 256,
+      "refined_metrics": {
+        "accuracy": 0.9140472709551657,
+        "cell_accuracy": 0.9140472709551657,
+        "closeness": 44,
+        "closeness_percent": 0.38596491228070173,
+        "exact_grid_accuracy": 0.09649122807017543,
+        "puzzles_scored": 114,
+        "queries_scored": 114,
+        "score": 11,
+        "score_percent": 0.09649122807017543
+      },
+      "score_delta_vs_baseline": 6,
+      "solved_tasks": [
+        "5783df64",
+        "68b67ca3",
+        "6ea4a07e",
+        "94414823",
+        "af24b4cc",
+        "b1fc8b8e",
+        "c48954c1",
+        "c7d4e6ad",
+        "e633a9e5",
+        "ef26cbf6",
+        "fc754716"
+      ],
+      "strong_augmentation": {
+        "identity_fraction": 0.25,
+        "inference_color_permutations": 2,
+        "inference_orders": 2,
+        "preserve_zero": true,
+        "training_color_permutations": 4,
+        "training_variants_by_task": {
+          "00576224": {
+            "candidate_variants": 64,
+            "canonical_orderings": 2,
+            "original_anchors": 2,
+            "selected_variants": 64
+          },
+          "03560426": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "0692e18c": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "0becf7df": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "0c786b71": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "12eac192": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "137f0df0": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "15696249": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "17cae0c1": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "1acc24af": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "2072aba6": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "2685904e": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "27a77e38": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "27f8ce4f": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "2c737e39": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "31adaf00": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "31d5ba1a": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "32e9702f": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "332efdb3": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "34b99a2b": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "3979b1a8": {
+            "candidate_variants": 64,
+            "canonical_orderings": 2,
+            "original_anchors": 2,
+            "selected_variants": 64
+          },
+          "3b4c2228": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "3d31c5b3": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "48131b3c": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "4852f2fa": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "48f8583b": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "4acc7107": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "4cd1b7b2": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "4e469f39": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "506d28a5": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "575b1a71": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "5783df64": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "59341089": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "5d2a5c43": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "60c09cac": {
+            "candidate_variants": 64,
+            "canonical_orderings": 2,
+            "original_anchors": 2,
+            "selected_variants": 64
+          },
+          "626c0bcc": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "64a7c07e": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "66e6c45b": {
+            "candidate_variants": 64,
+            "canonical_orderings": 2,
+            "original_anchors": 2,
+            "selected_variants": 64
+          },
+          "67c52801": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "68b67ca3": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "69889d6e": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "6ad5bdfd": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "6df30ad6": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "6ea4a07e": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "6f473927": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "73182012": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "73c3b0d8": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "782b5218": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "7953d61e": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "7c8af763": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "7e02026e": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "7ee1c6ea": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "84db8fc4": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "8597cfd7": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "85fa5666": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "8b28cd80": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "8ba14f53": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "8e2edd66": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "8fbca751": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "90347967": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "9110e3c5": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "917bccba": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "94414823": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "9c1e755f": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "9c56f360": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "9f27f097": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "a406ac07": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "a59b95c0": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "a8610ef7": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "aa18de87": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "aa300dc3": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "ac605cbb": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "ae58858e": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "af24b4cc": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "b0722778": {
+            "candidate_variants": 64,
+            "canonical_orderings": 2,
+            "original_anchors": 2,
+            "selected_variants": 64
+          },
+          "b15fca0b": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "b1fc8b8e": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "b942fd60": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "bbb1b8b6": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "be03b35f": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "bf32578f": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "c074846d": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "c35c1b4c": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "c48954c1": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "c7d4e6ad": {
+            "candidate_variants": 64,
+            "canonical_orderings": 2,
+            "original_anchors": 2,
+            "selected_variants": 64
+          },
+          "c8b7cc0f": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "ca8de6ea": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "ce039d91": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "cfb2ce5a": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "d017b73f": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "d19f7514": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "d2acf2cb": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "da2b0fe3": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "dc2aa30b": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "e133d23d": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "e345f17b": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "e5790162": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "e5c44e8f": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "e633a9e5": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "e69241bd": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "e6de6e8f": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "e7dd8335": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "e872b94a": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "e99362f0": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "ea9794b1": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "ecaa0ec1": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "ed74f2f2": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "ed98d772": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "ef26cbf6": {
+            "candidate_variants": 64,
+            "canonical_orderings": 2,
+            "original_anchors": 2,
+            "selected_variants": 64
+          },
+          "f0afb749": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "f3cdc58f": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "f3e62deb": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          },
+          "f45f5ca7": {
+            "candidate_variants": 192,
+            "canonical_orderings": 6,
+            "original_anchors": 6,
+            "selected_variants": 192
+          },
+          "fc754716": {
+            "candidate_variants": 1536,
+            "canonical_orderings": 48,
+            "original_anchors": 48,
+            "selected_variants": 256
+          }
+        }
+      },
+      "ttt_metrics": {
+        "accuracy": 0.9131944444444444,
+        "cell_accuracy": 0.9131944444444444,
+        "closeness": 44,
+        "closeness_percent": 0.38596491228070173,
+        "exact_grid_accuracy": 0.07894736842105263,
+        "puzzles_scored": 114,
+        "queries_scored": 114,
+        "score": 9,
+        "score_percent": 0.07894736842105263
+      }
+    },
+    "baseline": {
+      "adaptation": {
+        "adaptation_pool_size_max": 4,
+        "adaptation_pool_size_mean": 3.4210526315789473,
+        "derived_ttt_candidates_before_cap_total": 2952,
+        "derived_ttt_items_mean": 25.894736842105264,
+        "derived_ttt_items_total": 2952,
+        "tasks": 114
+      },
+      "augmentation_strategy": "legacy_geometric_exact_vote",
+      "augmentation_transforms": [
+        "identity"
+      ],
+      "cell_accuracy_delta_vs_baseline": 0.0,
+      "extra_examples_loaded": 0,
+      "extra_examples_rejected": 0,
+      "final_metrics": {
+        "accuracy": 0.8980263157894737,
+        "cell_accuracy": 0.8980263157894737,
+        "closeness": 40,
+        "closeness_percent": 0.3508771929824561,
+        "exact_grid_accuracy": 0.043859649122807015,
+        "puzzles_scored": 114,
+        "queries_scored": 114,
+        "score": 5,
+        "score_percent": 0.043859649122807015
+      },
+      "final_stage": "refined",
+      "max_examples_per_task": null,
+      "refined_metrics": {
+        "accuracy": 0.8980263157894737,
+        "cell_accuracy": 0.8980263157894737,
+        "closeness": 40,
+        "closeness_percent": 0.3508771929824561,
+        "exact_grid_accuracy": 0.043859649122807015,
+        "puzzles_scored": 114,
+        "queries_scored": 114,
+        "score": 5,
+        "score_percent": 0.043859649122807015
+      },
+      "score_delta_vs_baseline": 0,
+      "solved_tasks": [
+        "3b4c2228",
+        "68b67ca3",
+        "9110e3c5",
+        "e633a9e5",
+        "fc754716"
+      ],
+      "strong_augmentation": null,
+      "ttt_metrics": {
+        "accuracy": 0.8985136452241715,
+        "cell_accuracy": 0.8985136452241715,
+        "closeness": 38,
+        "closeness_percent": 0.3333333333333333,
+        "exact_grid_accuracy": 0.043859649122807015,
+        "puzzles_scored": 114,
+        "queries_scored": 114,
+        "score": 5,
+        "score_percent": 0.043859649122807015
+      }
+    },
+    "cheat": {
+      "adaptation": {
+        "adaptation_pool_size_max": 14,
+        "adaptation_pool_size_mean": 12.74561403508772,
+        "derived_ttt_candidates_before_cap_total": 2308860,
+        "derived_ttt_items_mean": 244.01754385964912,
+        "derived_ttt_items_total": 27818,
+        "tasks": 114
+      },
+      "augmentation_strategy": "legacy_geometric_exact_vote",
+      "augmentation_transforms": [
+        "identity"
+      ],
+      "cell_accuracy_delta_vs_baseline": 0.031006335282651065,
+      "extra_examples_loaded": 1063,
+      "extra_examples_rejected": 17,
+      "final_metrics": {
+        "accuracy": 0.9290326510721247,
+        "cell_accuracy": 0.9290326510721247,
+        "closeness": 62,
+        "closeness_percent": 0.543859649122807,
+        "exact_grid_accuracy": 0.14912280701754385,
+        "puzzles_scored": 114,
+        "queries_scored": 114,
+        "score": 17,
+        "score_percent": 0.14912280701754385
+      },
+      "final_stage": "refined",
+      "max_examples_per_task": 256,
+      "refined_metrics": {
+        "accuracy": 0.9290326510721247,
+        "cell_accuracy": 0.9290326510721247,
+        "closeness": 62,
+        "closeness_percent": 0.543859649122807,
+        "exact_grid_accuracy": 0.14912280701754385,
+        "puzzles_scored": 114,
+        "queries_scored": 114,
+        "score": 17,
+        "score_percent": 0.14912280701754385
+      },
+      "score_delta_vs_baseline": 12,
+      "solved_tasks": [
+        "2072aba6",
+        "27a77e38",
+        "332efdb3",
+        "59341089",
+        "66e6c45b",
+        "68b67ca3",
+        "6ea4a07e",
+        "8597cfd7",
+        "9110e3c5",
+        "aa18de87",
+        "b1fc8b8e",
+        "be03b35f",
+        "c7d4e6ad",
+        "e633a9e5",
+        "e7dd8335",
+        "f45f5ca7",
+        "fc754716"
+      ],
+      "strong_augmentation": null,
+      "ttt_metrics": {
+        "accuracy": 0.9295199805068226,
+        "cell_accuracy": 0.9295199805068226,
+        "closeness": 62,
+        "closeness_percent": 0.543859649122807,
+        "exact_grid_accuracy": 0.17543859649122806,
+        "puzzles_scored": 114,
+        "queries_scored": 114,
+        "score": 20,
+        "score_percent": 0.17543859649122806
+      }
+    }
+  },
+  "task_differences": {
+    "augmentation_fixed_vs_baseline": [
+      "5783df64",
+      "6ea4a07e",
+      "94414823",
+      "af24b4cc",
+      "b1fc8b8e",
+      "c48954c1",
+      "c7d4e6ad",
+      "ef26cbf6"
+    ],
+    "augmentation_regressed_vs_baseline": [
+      "3b4c2228",
+      "9110e3c5"
+    ],
+    "cheat_fixed_vs_baseline": [
+      "2072aba6",
+      "27a77e38",
+      "332efdb3",
+      "59341089",
+      "66e6c45b",
+      "6ea4a07e",
+      "8597cfd7",
+      "aa18de87",
+      "b1fc8b8e",
+      "be03b35f",
+      "c7d4e6ad",
+      "e7dd8335",
+      "f45f5ca7"
+    ],
+    "cheat_regressed_vs_baseline": [
+      "3b4c2228"
+    ]
+  }
+}

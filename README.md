@@ -1,67 +1,171 @@
 # mini-arc-v12 — UFRGS class project
 
-## Credits
+## Credits and project context
 
-This repository is based on the original **mini-arc / ARC Prize** project created
-by **Paul Fletcher-Hill**. The original project and paper are available at
-[mini-arc.pdf](https://www.paulfletcherhill.com/mini-arc.pdf).
+This repository is based on the original **Mini-ARC** project created by
+**Paul Fletcher-Hill** for the ARC Prize. The original code is available at
+[pfletcherhill/mini-arc](https://github.com/pfletcherhill/mini-arc), and the
+paper is reproduced in [`paper/mini-arc.tex`](paper/mini-arc.tex) and published
+as [mini-arc.pdf](https://www.paulfletcherhill.com/mini-arc.pdf).
 
-The `mini-arc-v12` training path is work for a class project at the
-**Federal University of Rio Grande do Sul (UFRGS)**. It adds a reduced 12×12
-patch-based model, balanced RE-ARC preparation, portable Apptainer execution,
-and restart-safe training on Grid'5000.
+The work in this repository is a class project at the **Federal University of
+Rio Grande do Sul (UFRGS)**. It independently trains Mini-ARC-v12 on a reduced
+dataset and evaluates a specific intervention: stronger data augmentation
+during test-time training and inference.
 
-## What this project trains
+## Research hypothesis
 
-`mini-arc-v12` is a fresh `vision_encoder` model with:
+The original paper asks whether a small, ARC-specific visual Transformer can
+solve abstraction and reasoning puzzles without a language model, search, or
+program synthesis. Its proposed system combines three ingredients:
 
-- 12×12 input/output grids;
-- four ARC demonstration pairs plus one query grid;
+1. a 67-million-parameter Transformer trained only on ARC-like grids;
+2. test-time training (TTT), which temporarily adapts a copy of the model to
+   the demonstrations of each test puzzle;
+3. refinement, which feeds a predicted output back to the adapted model for
+   two additional correction passes.
+
+The hypothesis tested by this class project is narrower:
+
+> If ARC transformations are invariant to geometry, colour relabelling, and
+> demonstration order, exposing those equivalent views during TTT and
+> aggregating their predictions should improve performance over standard TTT
+> on the same Mini-ARC-v12 checkpoint.
+
+The comparison also includes a deliberately privileged `cheat` condition. It
+adds generated input/output pairs associated with each evaluation task and is
+used as an upper bound on the value of better task-specific data. It is not a
+fair generalization result.
+
+## Experimental setup
+
+All three scenarios use the same `mini-arc-v12-full-refinement` checkpoint,
+the same 114 puzzles used by the paper, the first four demonstrations, the
+first test query, the same seed, and the same TTT hyperparameters. TTT runs for
+up to 15 epochs with a 99.5% adaptation-accuracy cutoff; every final prediction
+then receives two refinement rounds.
+
+| Scenario | Task-specific training data and inference |
+|---|---|
+| **Baseline** | Original demonstrations and identity view only. |
+| **Data augmentation** | Up to 256 identity-anchored TTT items per task, sampled from all eight D4 symmetries, seeded colour permutations, and demonstration orders. At inference, transformed predictions are mapped back to canonical space and combined by hierarchical voting. |
+| **Cheat upper bound** | Baseline procedure plus compatible ARC-GEN pairs for the evaluation tasks, capped at 256 derived TTT items per task. |
+
+The baseline used 2,952 derived TTT items in total. Data augmentation used
+24,512 items from 94,912 candidates before the per-task cap. The cheat run
+loaded 1,063 extra pairs, rejected 17 incompatible pairs, and used 27,818
+derived items from 2,308,860 candidates before capping.
+
+### Metrics from the paper
+
+- **Score** is the number of puzzles whose complete output grid is exactly
+  correct. This is the primary measure of solved tasks.
+- **Accuracy** is cell accuracy over the centered, padded 12×12 output. Padding
+  makes this number optimistic for small grids, so it must not be read as
+  puzzle-solving accuracy.
+- **Closeness** is the number of puzzles with at least 95% cell accuracy.
+
+## Results
+
+The comparison report selects the post-refinement prediction as the final
+stage, matching the paper's **TTT + Refined** setting.
+
+| Scenario | Score | Accuracy | Closeness |
+|---|---:|---:|---:|
+| **Baseline** | 5/114 (4.39%) | 89.80% | 40/114 (35.09%) |
+| **Data augmentation** | **11/114 (9.65%)** | **91.40%** | **44/114 (38.60%)** |
+| **Cheat upper bound** | 17/114 (14.91%) | 92.90% | 62/114 (54.39%) |
+
+Relative to the baseline, data augmentation gains 6 exact solutions, 1.60
+percentage points of cell accuracy, and 4 close solutions. It fixes 8 tasks
+that the baseline misses and loses 2 that the baseline solves, for a net gain
+of 6. This is a 2.2× increase in Score (11 versus 5) under the controlled
+comparison.
+
+The cheat condition gains 12 exact solutions over the baseline, but its 1,063
+task-associated extra examples give it information unavailable to the other
+runs. It is evidence that the model benefits from stronger task-specific
+supervision, not an unbiased estimate of performance on unseen ARC tasks.
+
+Refinement does not help every scenario:
+
+| Scenario | TTT Score | TTT + Refined Score | Change |
+|---|---:|---:|---:|
+| Baseline | 5 | 5 | 0 |
+| Data augmentation | 9 | 11 | +2 |
+| Cheat upper bound | 20 | 17 | -3 |
+
+Thus, the augmentation result supports the project's intervention, while the
+cheat result also shows that refinement can overwrite correct TTT outputs. A
+future evaluation should treat the number of refinement rounds as a validation
+choice rather than assuming that two rounds always improve Score.
+
+The complete machine-readable result is in
+[`results/comparison.json`](results/comparison.json).
+
+## Why our baseline is below the paper's 17.5%
+
+The paper reports **20/114 (17.5%)** for Mini-ARC-v12 with TTT and refinement;
+our independently trained baseline obtains **5/114 (4.39%)**. The two numbers
+use the same metric and evaluation subset, but they do not come from the same
+pretrained model or training corpus.
+
+The largest documented reproduction gap is the training data:
+
+| | Original Mini-ARC-v12 | This project |
+|---|---:|---:|
+| Training examples | 830,648 | 186,556 |
+| Data sources | RE-ARC, BARC Heavy, ARC-HTML | Reduced RE-ARC only |
+| Training diversity | RE-ARC patterns plus BARC and ARC-HTML generators | 391 eligible RE-ARC generator families |
+
+The local corpus is about 4.5× smaller and, more importantly, omits the BARC
+Heavy and ARC-HTML sources. The original paper trained on 4–8 A100 GPUs over
+multiple days for at least 150,000 steps with varying effective batch sizes.
+Our full-refinement launcher is configured for 150,000 steps on eight GPUs,
+but `comparison.json` does not record the selected checkpoint's global step or
+training history. A shorter realized run, different best-checkpoint selection,
+optimizer trajectory, data balancing, and random initialization may therefore
+also contribute, but the current report cannot quantify them.
+
+There are further implementation differences. This project rebuilds the data
+pipeline with family-balanced sampling and held-out examples per generator,
+whereas the paper describes a different mixed synthetic dataset and split.
+These choices improve traceability but change the training distribution.
+Finally, Accuracy includes easy-to-predict padding cells; Score is the safer
+number for comparing actual solutions.
+
+The lower absolute baseline does **not** invalidate the augmentation
+intervention. The intervention is evaluated as a paired comparison: checkpoint,
+tasks, seed, TTT schedule, query selection, and refinement count are held
+constant, while the augmentation policy changes. It supports the conclusion
+that strong augmentation improves this checkpoint on this 114-task subset. It
+does not establish that the repository reproduces the paper's absolute 17.5%,
+nor that the same gain will necessarily transfer to another checkpoint or the
+full ARC benchmark.
+
+## Model and implementation
+
+The evaluated profile keeps the original Mini-ARC-v12 scale:
+
+- 12×12 input and output grids;
+- four demonstration pairs and one query;
 - 2×2 patch embeddings;
-- four encoder layers, four attention heads, `d_model=128`, and `d_ff=512`.
+- 16 encoder layers, 16 attention heads, `d_model=512`, and `d_ff=3072`;
+- 67,343,755 parameters;
+- noisy partial targets on 25% of pretraining steps, enabling refinement.
 
-The default `reduced` profile is the validated baseline. The separate `full`
-profile reproduces the creator's architecture: 16 layers, 16 heads,
-`d_model=512`, and `d_ff=3072`. It uses independent checkpoints and is launched
-with `scripts/train_mini_arc_v12_full_oar.sh`.
+`arc_prize/eval_arc_agi.py` creates and discards a separately adapted model copy
+for every puzzle, so evaluation never changes the base checkpoint. The direct
+`full` profile has an untrained refinement input and must be evaluated with
+`REFINEMENT_ROUNDS=0`; use the independently trained `full-refinement` profile
+for the experiment reported above.
 
-The completed `full` profile uses direct-output pre-training. Test-time training
-(TTT) is performed separately during ARC-AGI evaluation, on a temporary copy of
-the model for each puzzle. Its optional `tgt_embedding` path is untrained, so
-refinement must not be requested for that checkpoint. The independent
-`full-refinement` profile trains the same 67.3-million-parameter architecture
-from scratch with noisy partial targets on 25% of steps, matching the paper's
-refinement setup without overwriting the direct-only checkpoint.
+## Reproducibility
 
-Training uses the reduced RE-ARC dataset. Examples are sampled uniformly by
-generator family, so large families do not dominate the objective. Validation
-targets are held out per family and never appear as demonstrations.
+The detailed cluster guide is in
+[`TRAINING_MINI_ARC_V12.md`](TRAINING_MINI_ARC_V12.md). The short workflow is:
 
-## Project files
-
-- `arc_prize/rearc_manifest.py` validates raw RE-ARC JSON and produces the
-  prepared dataset.
-- `arc_prize/rearc_dataset.py` creates deterministic, balanced training and
-  validation tasks.
-- `arc_prize/train_rearc.py` implements DDP training, metrics, checkpointing,
-  signal handling, and resume.
-- `arc_prize/eval_arc_agi.py` evaluates a checkpoint on ARC-AGI JSON tasks,
-  reports direct and TTT metrics when solutions are available, and writes ARC
-  predictions for tasks without solutions.
-- `containers/mini-arc-v12.def` defines the PyTorch/Apptainer image.
-- `scripts/train_mini_arc_v12_oar.sh` stages a Grid'5000 job into `/tmp` and
-  mirrors checkpoints back to `$HOME`.
-- `scripts/train_mini_arc_v12_full_oar.sh` selects the original full profile
-  and `$HOME/arc-checkpoints/mini-arc-v12-full`.
-- `scripts/train_mini_arc_v12_full_refinement_oar.sh` trains 150,000 steps with
-  25% refinement in `$HOME/arc-checkpoints/mini-arc-v12-full-refinement` and
-  saves after every approximately two-minute epoch.
-- `scripts/train_mini_arc_v12_full_sirius_night_resume.sh` is the one-night,
-  eight-A100 resume wrapper for the full checkpoint.
-
-## Quick workflow
-
-1. Prepare the dataset without a GPU:
+1. Prepare the reduced RE-ARC dataset:
 
    ```bash
    python3 -m arc_prize.rearc_manifest \
@@ -69,77 +173,41 @@ targets are held out per family and never appear as demonstrations.
      --output data/re_arc_5k_12x12_balanced
    ```
 
-2. Build the container on a Linux/amd64 machine with Apptainer:
+   The current source should retain 186,556 examples across 391 families and
+   produce `manifest.json` plus `examples.sqlite3`.
+
+2. Build the reproducible CUDA/Apptainer image:
 
    ```bash
    ./scripts/build_mini_arc_v12_container.sh \
      ./mini-arc-v12-pytorch2.4.1-cuda12.1.sif
    ```
 
-3. Copy the prepared dataset, SIF, and source code to persistent Grid'5000
-   `$HOME` storage.
+3. Train or resume the full model with its refinement branch:
 
-4. Inside an OAR GPU allocation, verify the image with `apptainer exec --nv`,
-   run a two-step smoke test, then start the launcher.
+   ```bash
+   ./scripts/train_mini_arc_v12_full_refinement_oar.sh
+   ```
 
-See [TRAINING_MINI_ARC_V12.md](TRAINING_MINI_ARC_V12.md) for exact transfer,
-smoke-test, OAR, checkpoint, and resume commands. See [AGENT.md](AGENT.md) for
-an implementation-oriented handoff.
+   By default this runs 150 epochs of 1,000 steps, uses refinement targets on
+   25% of steps, and stores resumable `latest.pt` and validation-selected
+   `best.pt` checkpoints under
+   `$HOME/arc-checkpoints/mini-arc-v12-full-refinement`.
 
-## Paper-aligned ARC evaluation
+4. Reproduce the three-scenario comparison on Grid'5000:
 
-The evaluator defaults to the paper's important TTT settings: all permutations
-of all combinations containing at least three demonstration pairs, up to 15
-epochs, and a 99.5% training-accuracy cutoff. The launcher evaluates the 114
-paper task IDs, uses the first four demonstrations and first test query as the
-original experiment artifacts did, and reports the paper's Score, Accuracy,
-and Closeness metrics. Accuracy includes centered 12×12 padding, so Score is the
-metric for completely solved puzzles.
+   ```bash
+   RESULTS_DIR="$HOME/arc-results/mini-arc-v12-full-refinement-ttt-comparison" \
+   ./scripts/eval_mini_arc_v12_ttt_comparison_oar.sh
+   ```
 
-Run the direct-only checkpoint with TTT:
+   On the ARM64 PCAD environment, use
+   `scripts/eval_mini_arc_v12_ttt_comparison_pcad.sh` and set `PYTHON_BIN` and
+   `SCRATCH` as required by that host. A quick smoke test can set
+   `MAX_TASKS=1 TTT_EPOCHS=1`.
 
-```bash
-RESULTS_DIR="$HOME/arc-results/mini-arc-v12-full-paper-ttt" \
-./scripts/eval_mini_arc_v12_full_oar.sh
-```
-
-To compare the best `full-refinement` checkpoint under standard TTT, strong
-augmentation, and the ARC-GEN extra-example upper bound, run:
-
-```bash
-RESULTS_DIR="$HOME/arc-results/mini-arc-v12-full-refinement-ttt-comparison" \
-./scripts/eval_mini_arc_v12_ttt_comparison_oar.sh
-```
-
-All three runs use identical TTT hyperparameters, task IDs, seed, checkpoint,
-and test queries. It defaults to
-`$HOME/arc-checkpoints/mini-arc-v12-full-refinement/best.pt` and uses two
-refinement rounds. The augmentation run is implemented separately from the
-legacy four-view strategy. It samples at most 256 identity-anchored TTT items
-from the product of all eight D4 symmetries, seeded colour permutations, and
-demonstration orders. At inference it defaults to 32 candidates (eight
-geometries, two colour mappings, and two demonstration orders) and uses
-hierarchical voting after mapping every candidate back to canonical space. The
-cheat run adds compatible pairs from `to-solve/ARC-GEN/tasks`; copied fallback
-tasks and generated grids larger than 12x12 are excluded and counted in its
-report. The derived cheat permutations are deterministically capped at 256 per
-task while all compatible raw pairs remain in its pool; set
-`CHEAT_MAX_TTT_EXAMPLES=0` to enumerate them all. The three raw reports and
-`comparison.json` are written under `RESULTS_DIR`. Use `MAX_TASKS=1
-TTT_EPOCHS=1` for a quick smoke test.
-
-The strong augmentation budget can be adjusted with
-`STRONG_TTT_MAX_EXAMPLES`, `STRONG_TRAIN_COLOR_PERMUTATIONS`,
-`STRONG_INFERENCE_COLOR_PERMUTATIONS`, `STRONG_INFERENCE_ORDERS`, and
-`STRONG_IDENTITY_FRACTION`. The comparison reports refinement as its final
-stage whenever `REFINEMENT_ROUNDS` is greater than zero, while retaining the
-unrefined TTT metrics.
-
-To run the old direct-only checkpoint instead, explicitly set
-`CHECKPOINT_PATH="$HOME/arc-checkpoints/mini-arc-v12-full/best.pt"` and
-`REFINEMENT_ROUNDS=0`.
-
-On an ARM64 CUDA cluster without Apptainer, use
-`scripts/eval_mini_arc_v12_ttt_comparison_pcad.sh`. It stages all transient
-inputs beneath the required `$SCRATCH` directory and runs a CUDA-enabled native
-Python environment selected with `PYTHON_BIN`.
+The evaluation writes `baseline.json`, `augmentation.json`, `cheat.json`, and
+the consolidated `comparison.json` beneath `RESULTS_DIR`. Keep the checkpoint,
+dataset fingerprint, seed, and all evaluation environment variables with any
+new result; `comparison.json` alone does not capture the full training
+provenance.
