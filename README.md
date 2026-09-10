@@ -37,26 +37,36 @@ The hypothesis tested by this class project is narrower:
 The comparison also includes a deliberately privileged `cheat` condition. It
 adds generated input/output pairs associated with each evaluation task and is
 used as an upper bound on the value of better task-specific data. It is not a
-fair generalization result.
+fair generalization result. A subsequent standalone experiment evaluates
+examples generated and validated through the Google API. Because that condition
+uses an external language model to produce task-specific supervision, it is
+reported separately from the original controlled comparison.
 
 ## Experimental setup
 
-All three scenarios use the same `mini-arc-v12-full-refinement` checkpoint,
-the same 114 puzzles used by the paper, the first four demonstrations, the
-first test query, the same seed, and the same TTT hyperparameters. TTT runs for
-up to 15 epochs with a 99.5% adaptation-accuracy cutoff; every final prediction
-then receives two refinement rounds.
+The three original comparison scenarios use the same
+`mini-arc-v12-full-refinement` checkpoint, the same 114 puzzles used by the
+paper, the first four demonstrations, the first test query, the same seed, and
+the same TTT hyperparameters. TTT runs for up to 15 epochs with a 99.5%
+adaptation-accuracy cutoff; every final prediction then receives two refinement
+rounds. The later Google API run preserves this evaluation configuration and
+adds only its accepted synthetic pairs to identity-view TTT.
 
 | Scenario | Task-specific training data and inference |
 |---|---|
 | **Baseline** | Original demonstrations and identity view only. |
 | **Data augmentation** | Up to 256 identity-anchored TTT items per task, sampled from all eight D4 symmetries, seeded colour permutations, and demonstration orders. At inference, transformed predictions are mapped back to canonical space and combined by hierarchical voting. |
 | **Cheat upper bound** | Baseline procedure plus compatible ARC-GEN pairs for the evaluation tasks, capped at 256 derived TTT items per task. |
+| **Google API examples** | Baseline procedure plus synthetic pairs generated and validated through the Google API, with identity-view inference and at most 256 derived TTT items per task. |
 
 The baseline used 2,952 derived TTT items in total. Data augmentation used
 24,512 items from 94,912 candidates before the per-task cap. The cheat run
 loaded 1,063 extra pairs, rejected 17 incompatible pairs, and used 27,818
-derived items from 2,308,860 candidates before capping.
+derived items from 2,308,860 candidates before capping. The Google API dataset
+contains 594 accepted synthetic pairs across 69 tasks; the other 45 tasks have
+no accepted synthetic pair and therefore use only their original
+demonstrations. Original demonstrations embedded in the `*-plus.json` files
+were removed before loading the extras, avoiding duplicate TTT supervision.
 
 ### Metrics from the paper
 
@@ -76,6 +86,7 @@ stage, matching the paper's **TTT + Refined** setting.
 |---|---:|---:|---:|
 | **Baseline** | 5/114 (4.39%) | 89.80% | 40/114 (35.09%) |
 | **Data augmentation** | **11/114 (9.65%)** | **91.40%** | **44/114 (38.60%)** |
+| **Google API examples** | **13/114 (11.40%)** | **92.03%** | **55/114 (48.25%)** |
 | **Cheat upper bound** | 17/114 (14.91%) | 92.90% | 62/114 (54.39%) |
 
 Relative to the baseline, data augmentation gains 6 exact solutions, 1.60
@@ -83,6 +94,14 @@ percentage points of cell accuracy, and 4 close solutions. It fixes 8 tasks
 that the baseline misses and loses 2 that the baseline solves, for a net gain
 of 6. This is a 2.2× increase in Score (11 versus 5) under the controlled
 comparison.
+
+The Google API condition gains 8 exact solutions, 2.23 percentage points of
+cell accuracy, and 15 close solutions over the previously measured baseline.
+It also exceeds strong data augmentation by 2 exact solutions. This result was
+collected as a separate run; the baseline, data-augmentation, and cheat
+conditions were not re-executed. Its use of an external model and
+task-conditioned synthetic examples makes it a different intervention rather
+than a like-for-like Mini-ARC-only comparison.
 
 The cheat condition gains 12 exact solutions over the baseline, but its 1,063
 task-associated extra examples give it information unavailable to the other
@@ -95,15 +114,27 @@ Refinement does not help every scenario:
 |---|---:|---:|---:|
 | Baseline | 5 | 5 | 0 |
 | Data augmentation | 9 | 11 | +2 |
+| Google API examples | 13 | 13 | 0 |
 | Cheat upper bound | 20 | 17 | -3 |
 
 Thus, the augmentation result supports the project's intervention, while the
-cheat result also shows that refinement can overwrite correct TTT outputs. A
-future evaluation should treat the number of refinement rounds as a validation
-choice rather than assuming that two rounds always improve Score.
+cheat result also shows that refinement can overwrite correct TTT outputs. For
+the Google API condition, refinement leaves Score unchanged, decreases Accuracy
+slightly from 92.15% to 92.03%, and increases Closeness from 54 to 55 puzzles.
+A future evaluation should treat the number of refinement rounds as a
+validation choice rather than assuming that two rounds always improve Score.
+
+The full progression of the Google API run is:
+
+| Prediction stage | Score | Accuracy | Closeness |
+|---|---:|---:|---:|
+| Zero-shot | 0/114 (0.00%) | 83.92% | 16/114 (14.04%) |
+| TTT | 13/114 (11.40%) | 92.15% | 54/114 (47.37%) |
+| TTT + Refined | 13/114 (11.40%) | 92.03% | 55/114 (48.25%) |
 
 The complete machine-readable result is in
-[`results/comparison.json`](results/comparison.json).
+[`results/comparison.json`](results/comparison.json) for the original three-run
+comparison. 
 
 ## Why our baseline is below the paper's 17.5%
 
