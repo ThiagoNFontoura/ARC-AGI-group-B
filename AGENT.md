@@ -1,102 +1,109 @@
 # mini-arc-v12 agent handoff
 
-## Historical handoff state (2026-09-03, Grid'5000 local time)
+## Current project state (2026-09-09)
 
-The reservation and training steps below are retained as a historical record.
-The `full-refinement` checkpoint has since become the preferred model for TTT
-comparisons; use `mini-arc-v12-full-refinement/best.pt` with two refinement
-rounds rather than repeating the training instructions in this section.
+This is a UFRGS class-project reproduction and intervention study based on Paul
+Fletcher-Hill's Mini-ARC. The public-facing narrative and current numerical
+results are in `README.md`; do not reintroduce the old reservation diary or
+describe the paper-aligned result as unknown.
 
-At that time, the user was at Grid'5000 Lyon and wanted to use the remaining
-Sirius night window. The next compute tasks were:
+The preferred evaluation checkpoint is
+`$HOME/arc-checkpoints/mini-arc-v12-full-refinement/best.pt`. It has the full
+Mini-ARC-v12 architecture and a refinement branch trained with noisy partial
+targets. The consolidated result currently available in the workspace is
+`results/comparison.json`.
 
-1. Train the new `full-refinement` profile on Sirius with 8 A100s.
-2. Evaluate the already-trained direct-only full checkpoint on a different,
-   modern single-GPU node using the corrected paper-aligned evaluator.
-3. After refinement training, evaluate its `best.pt` with TTT plus two
-   refinement rounds.
+## Research claim and limits
 
-The corrected Sirius reservation has **not been confirmed as submitted** in
-this conversation. The earlier proposed interval from 19:05 to 08:55 was wrong
-for a submission made around 23:30 because it represented 13h50. The wrapper
-now explicitly contains `walltime=8:55:00`. For the night from September 3 to
-September 4, submit exactly:
+The local intervention asks whether strong invariance-based augmentation during
+TTT and inference improves the same checkpoint relative to identity-only TTT.
+The controlled comparison holds checkpoint, 114 task IDs, first four
+demonstrations, first query, seed, TTT hyperparameters, and two refinement
+rounds constant.
 
-```bash
-cd "$HOME/arc-agi/mini-arc"
-oarsub \
-  -r "2026-09-04 00:00:00,2026-09-04 08:55:00" \
-  -S ./scripts/train_mini_arc_v12_full_refinement_sirius_night.sh
-```
+Final post-refinement paper metrics are:
 
-The wrapper includes `-t exotic`, `-t night`, host
-`sirius-1.lyon.grid5000.fr`, 8 GPUs, and `walltime=8:55:00`. OAR may warn that
-the reservation end is ignored because walltime is explicit; this is safe only
-when `start_time=00:00:00` and `walltime=8:55:00`. Immediately verify with:
+| Scenario | Score | Accuracy | Closeness |
+|---|---:|---:|---:|
+| baseline | 5/114 (4.39%) | 89.80% | 40/114 (35.09%) |
+| augmentation | 11/114 (9.65%) | 91.40% | 44/114 (38.60%) |
+| cheat upper bound | 17/114 (14.91%) | 92.90% | 62/114 (54.39%) |
 
-```bash
-oarstat -fj <JOB_ID>
-```
+The defensible conclusion is that augmentation improved this checkpoint by 6
+exact solutions (11 versus 5) on the selected 114 tasks. Do not claim an exact
+reproduction of the original paper or generalize the effect to all ARC tasks
+without another evaluation.
 
-Do not assume success unless it shows:
+The `cheat` run loaded 1,063 task-associated ARC-GEN pairs and rejected 17. It
+is a privileged-data upper bound/positive control, not a fair generalization
+result and not evidence suitable for a leaderboard claim.
 
-```text
-start_time = 2026-09-04 00:00:00
-walltime = 8:55:00
-types = exotic, night, ...
-properties = (host='sirius-1.lyon.grid5000.fr') ...
-```
+TTT-only Scores were baseline 5, augmentation 9, and cheat 20. Refinement
+changed them to 5, 11, and 17 respectively. Do not assume refinement is
+monotonic; in this run it helped augmentation by 2 and hurt cheat by 3.
 
-If an incorrectly scheduled job exists, the user should identify it first and
-cancel only that job with `oardel <WRONG_JOB_ID>`.
+## Relationship to the original paper
 
-### Git synchronization blocker
+The original paper reports Mini-ARC-v12 TTT + Refined Score of 20/114 (17.5%).
+The local baseline is 5/114 (4.39%). The most concrete gap is pretraining data:
 
-The relevant local commits are:
+- original: 830,648 training puzzles from RE-ARC, BARC Heavy, and ARC-HTML;
+- local: 186,556 retained examples across 391 families from reduced RE-ARC.
 
-```text
-93290b6 Align ARC evaluation and add refinement training
-beec1e6 Add Sirius night refinement launcher
-22d9f10 Limit Sirius night refinement walltime
-```
+The local corpus is about 4.5 times smaller and substantially less diverse.
+The original training used 4–8 A100 GPUs over multiple days and at least
+150,000 steps. The local full-refinement launcher targets 150,000 steps, but
+`results/comparison.json` does not store checkpoint global step or history.
+Treat reduced realized compute as a plausible but unverified explanation unless
+checkpoint metadata or logs are available. Different data balancing, split,
+checkpoint selection, and random trajectory may also matter.
 
-The Codex environment could commit but could not push over HTTPS because it had
-no GitHub credentials (`could not read Username`). Before Grid'5000 can pull
-these changes, the user must push from an authenticated local shell:
+This absolute reproduction gap does not invalidate the within-checkpoint
+intervention because the three local runs are paired. It does limit the claim's
+scope to this checkpoint, configuration, and task subset.
 
-```bash
-cd /home/eduardoaltmann/Workspace/arc-agi/mini-arc
-git push origin main
-```
+## Metric semantics
 
-Then on Grid'5000:
+- `score`: number of completely correct puzzle outputs; primary solved-task
+  metric.
+- `accuracy` / `cell_accuracy`: accuracy across padded 12×12 cells.
+- `closeness`: puzzles with at least 95% cell accuracy.
+- `exact_grid_accuracy` and `score_percent`: `score / puzzles_scored`.
 
-```bash
-cd "$HOME/arc-agi/mini-arc"
-git pull origin main
-git log -4 --oneline
-```
+Padding can make cell Accuracy look high even when Score is low. For example,
+the baseline has 89.80% Accuracy but solves only 5 puzzles. Always report Score
+alongside Accuracy and Closeness.
 
-Verify that the three commits above and
-`scripts/train_mini_arc_v12_full_refinement_sirius_night.sh` are present before
-submitting. A later commit that updates this handoff may sit on top of them.
+`ttt_metrics` measure the first prediction from the task-adapted model.
+`refined_metrics` measure the result after feeding that prediction back through
+the same adapted model for the configured refinement rounds. Refinement is an
+inference pass, not additional optimizer training.
 
-## Purpose
+## Scenario implementation
 
-This repository contains an experimental UFRGS class-project training path for
-`mini-arc-v12`: a reduced 12×12, 2×2 patch-based ARC vision encoder trained on
-reduced RE-ARC. Preserve the pre-existing notebooks, Modal code, and older
-training paths unless a task explicitly targets them.
+`scripts/eval_mini_arc_v12_ttt_comparison_oar.sh` and its PCAD counterpart run:
 
-## Data pipeline
+1. `baseline`: original demonstrations, identity transformation, legacy exact
+   vote;
+2. `augmentation`: eight D4 geometries, seeded colour permutations,
+   demonstration orders, a 256-item TTT cap, and hierarchical canonical-space
+   voting;
+3. `cheat`: identity transformation plus compatible pairs from
+   `to-solve/ARC-GEN/tasks`, with a default 256-item derived TTT cap.
 
-Raw reduced RE-ARC data is a folder of generator-family JSON arrays:
+All default to 15 TTT epochs, learning rate `1e-5`, weight decay `1e-5`, batch
+size 4, 99.5% cutoff, seed 42, and two refinement rounds. The comparison uses
+`data/mini_arc_v12_evaluation_ids.txt`, the first four demonstrations, and the
+first query for each of the 114 paper tasks.
 
-```text
-re-arc/re_arc_5k_12x12/tasks/*.json
-```
+The strong augmentation run samples at most 256 identity-anchored items per
+task from geometry × colour × order combinations. At inference it defaults to
+32 candidates and maps transformed outputs back to canonical space before
+hierarchical voting.
 
-Run the standard-library-only preparation command from `mini-arc`:
+## Data and training
+
+Prepare the deterministic, family-balanced reduced RE-ARC dataset with:
 
 ```bash
 python3 -m arc_prize.rearc_manifest \
@@ -104,334 +111,97 @@ python3 -m arc_prize.rearc_manifest \
   --output data/re_arc_5k_12x12_balanced
 ```
 
-The generated directory is intentionally ignored by Git and contains:
+Expected current output:
 
-- `manifest.json`: deterministic source hashes, splits, exclusions, and
-  dataset fingerprint;
-- `examples.sqlite3`: compact, validated grid storage.
+- 391 eligible families;
+- 186,556 retained examples;
+- fingerprint
+  `f4c9714c940a05771462d1ee55c4f82fabbd6d56d3d7cd782299de8ce8522483`;
+- `manifest.json` and `examples.sqlite3`.
 
-For the current source, expected preparation output is 391 eligible families,
-186,556 retained examples, and fingerprint:
+Validation targets are held out within each family and must never be used as
+demonstrations. `arc_prize/rearc_dataset.py` implements this property, and
+`arc_prize/train_rearc.py` is the authoritative trainer.
 
-```text
-f4c9714c940a05771462d1ee55c4f82fabbd6d56d3d7cd782299de8ce8522483
-```
+Architecture profiles are checkpoint-incompatible:
 
-Families with fewer than six examples are excluded. Each validation target is
-drawn from the held-out split; its four demonstrations are selected only from
-the training split. `BalancedReARCDataset` must retain this property.
+- `reduced`: 4 layers, 4 heads, `d_model=128`, `d_ff=512`;
+- `full`: 16 layers, 16 heads, `d_model=512`, `d_ff=3072`, direct output only;
+- `full-refinement`: the same 67,343,755-parameter full architecture with
+  noisy-target refinement on 25% of training steps.
 
-This is **only the reduced RE-ARC source**, not the full training mixture used
-in the paper. The current project has 186,556 retained examples across 391
-families. The paper reports roughly 830,648 training puzzles from RE-ARC, BARC
-Heavy, and ARC-HTML and at least 150,000 optimization steps. Dataset diversity
-is therefore the largest remaining reproduction gap. Do not claim that this
-checkpoint reproduces the paper's result exactly.
+Never request refinement for `mini-arc-v12-full/best.pt`; its `tgt_embedding`
+path was not trained, and the evaluator correctly rejects it. Use the
+independent `full-refinement` checkpoint when `REFINEMENT_ROUNDS>0`.
 
-## Training implementation
-
-`arc_prize/train_rearc.py` is the authoritative v12 trainer.
-
-- Model: `ARCVisionEncoder`, `grid_dim=12`, four demonstration pairs, 2×2
-  patches, 4 layers, 4 heads, `d_model=128`, `d_ff=512`, dropout `0.1`.
-- Default optimizer: AdamW, learning rate `1e-4`, weight decay `1e-4`.
-- Default epoch: 1,000 train steps and 100 validation steps per DDP rank.
-- Best checkpoint criterion: held-out RE-ARC validation loss.
-- Reported metrics: training loss/cell accuracy and validation loss/cell/exact
-  grid accuracy.
-
-Architecture profiles are checkpoint-incompatible by design:
-
-- `reduced` / `mini-arc-v12`: 4 layers, 4 heads, `d_model=128`, `d_ff=512`.
-- `full` / `mini-arc-v12-full`: 16 layers, 16 heads, `d_model=512`, `d_ff=3072`.
-- `full-refinement` / `mini-arc-v12-full-refinement`: the same full
-  architecture (67,343,755 parameters), independently trained with noisy
-  targets on 25% of steps.
-
-Select a profile with `--model-profile`; use the full wrapper
-`scripts/train_mini_arc_v12_full_oar.sh` for Grid'5000. It defaults to
-`$HOME/arc-checkpoints/mini-arc-v12-full`, and must never be pointed at the
-reduced baseline checkpoint directory.
-
-### Current full-model run
-
-The direct-only full profile completed 100,000 steps on 8 A100s. Its first ARC
-evaluation covered 87 dimension-compatible tasks and scored zero exact grids;
-two-epoch TTT increased padded cell accuracy from 82.83% to 88.68%. That run was
-not paper-comparable because it excluded tasks with more than four context
-pairs and used a shortened TTT procedure.
-
-Observed persistent files were approximately 771 MiB each:
-
-```text
-$HOME/arc-checkpoints/mini-arc-v12-full/latest.pt
-$HOME/arc-checkpoints/mini-arc-v12-full/best.pt
-```
-
-The reduced 4-layer infrastructure baseline also completed 100,000 steps. Its
-last reported synthetic validation metrics were approximately 90.19% cell
-accuracy, 4.34% exact-grid accuracy, and loss 0.4096. Its checkpoints were
-approximately 9.6 MiB each under `$HOME/arc-checkpoints/mini-arc-v12`.
-
-The `full-refinement` profile is the preferred checkpoint for current TTT
-comparisons. Its trained refinement branch supports two inference refinement
-rounds. Its persistent directory is:
-
-```text
-$HOME/arc-checkpoints/mini-arc-v12-full-refinement
-```
-
-### ARC-AGI evaluation and TTT
-
-`arc_prize/eval_arc_agi.py` is the evaluator for the new checkpoint format; the
-older Modal evaluator expects a different checkpoint schema and must not be
-used directly. It performs direct inference and optional test-time training
-(TTT): for each ARC task it copies the base model, adapts the copy using that
-task's demonstrations, predicts its query, and discards the copy. TTT does not
-change the base checkpoint or model architecture. The paper-aligned defaults
-are 15 epochs, a 99.5% cutoff, and all permutations of combinations with at
-least three pairs. `data/mini_arc_v12_evaluation_ids.txt` supplies the paper's
-114 IDs; the OAR launcher truncates context to the first four pairs and scores
-the first query, matching the checked-in original experiment artifacts.
-
-Metrics intentionally retain compatibility aliases. `score` is the count of
-fully solved puzzles, `accuracy`/`cell_accuracy` includes all padded 12×12
-cells, and `closeness` counts puzzles with at least 95% cell accuracy.
-
-Cell accuracy is not puzzle accuracy. For example, a centered 4×4 output has
-128 padding cells among 144 positions, so predicting only the padding correctly
-already gives 88.9% cell accuracy while solving zero puzzles. In the first
-evaluation, `exact_grid_accuracy=0.0` meant 0/89 query grids were fully correct.
-In the paper, `TTT + Refined Score 20 (17.5%)` means 20/114 whole puzzles were
-correct; that is the comparable success metric.
-
-The corrected evaluator and launcher now:
-
-- select the 114 task IDs listed in the paper;
-- use the first four demonstrations when more are available, matching the
-  checked-in original experiment artifacts;
-- score only the first query per puzzle, again matching those artifacts;
-- generate all permutations of every combination of at least three context
-  pairs (6 TTT items for 3 pairs, 48 for 4 pairs);
-- run up to 15 TTT epochs with a 99.5% adaptation-accuracy cutoff;
-- report paper-style `score`, `accuracy`, and `closeness` as well as legacy
-  aliases.
-
-The paper-aligned result for the project's current checkpoint is still unknown.
-Do not reuse the earlier 87-task JSON as the corrected result.
-
-The direct-only baseline never passes a noisy target through `tgt_embedding` during
-pre-training. Consequently its target-refinement branch is untrained; do not
-run a second `tgt=` refinement pass on this checkpoint. The evaluator rejects
-that misuse. Train `scripts/train_mini_arc_v12_full_refinement_oar.sh` for the
-separate refinement checkpoint, then evaluate it with `REFINEMENT_ROUNDS=2`.
-
-The refinement trainer uses the original model's separate `tgt_embedding`
-input path. On 25% of optimization steps it receives a partially retained true
-target mixed with random class values; on the other 75% it predicts from the
-learned output query. This does not alter the full model architecture, but it
-requires a separately trained checkpoint because `tgt_embedding` in the
-direct-only checkpoint never received gradients.
-
-Do not replace the full checkpoint with model weights alone. A resumable
-checkpoint includes model, optimizer, AMP scaler, schedulers, epoch/step,
-history, best metric, dataset fingerprint, and per-rank RNG state.
-
-## Checkpoint locations and semantics
-
-The trainer can use a local checkpoint directory plus an optional persistent
-mirror:
-
-```text
---checkpoint-dir <local path>
---persistent-checkpoint-dir <persistent path>
-```
-
-For every checkpoint, it atomically saves locally first, then atomically copies
-`latest.pt` to the persistent directory. When validation improves, it also
-copies `best.pt`. A normal start automatically resumes `latest.pt`; a forced
-restart archives, rather than deletes, old checkpoints.
-
-On Grid'5000, keep persistent checkpoints in separate directories:
-
-```text
-$HOME/arc-checkpoints/mini-arc-v12
-$HOME/arc-checkpoints/mini-arc-v12-full
-$HOME/arc-checkpoints/mini-arc-v12-full-refinement
-```
-
-`latest.pt` is the allocation-safe resume state. `best.pt` is selected by
-lowest held-out RE-ARC validation loss and is the first checkpoint to evaluate.
-Never copy weights alone: optimizer, scaler, schedulers, epoch/step, best loss,
-history, dataset fingerprint, and per-rank RNG states are all stored.
-
-## Apptainer and Grid'5000
-
-Build the image defined by `containers/mini-arc-v12.def` with:
+Train/resume the evaluated profile on Grid'5000 with:
 
 ```bash
-./scripts/build_mini_arc_v12_container.sh \
-  ./mini-arc-v12-pytorch2.4.1-cuda12.1.sif
+./scripts/train_mini_arc_v12_full_refinement_oar.sh
 ```
 
-The expected persistent Grid'5000 layout is:
+Defaults are 8 GPUs, batch 16 per rank, 1,000 training steps and 100 validation
+steps per epoch, 150 epochs, patience 150, and `REFINEMENT_RATIO=0.25`.
+`latest.pt` is the complete resumable state; `best.pt` is selected by lowest
+held-out validation loss. Both include model, optimizer, scaler, schedulers,
+progress, history, dataset fingerprint, and RNG state. Never replace them with
+model weights alone.
 
-```text
-$HOME/arc-agi/mini-arc
-$HOME/arc-data/re_arc_5k_12x12_balanced
-$HOME/containers/mini-arc-v12-pytorch2.4.1-cuda12.1.sif
-$HOME/arc-checkpoints/mini-arc-v12
-$HOME/arc-checkpoints/mini-arc-v12-full
-$HOME/arc-checkpoints/mini-arc-v12-full-refinement
-$HOME/arc-results
-```
+The launcher stages source, data, image, and checkpoint under a job-specific
+`/tmp/$USER/mini-arc-v12-$OAR_JOB_ID` directory, trains locally, and atomically
+mirrors checkpoints to `$HOME`. Do not change it to train directly from NFS.
+Do not use `FORCE_RESTART=1` unless the user explicitly wants a new run; the
+trainer archives old checkpoints rather than deleting them.
 
-The last reported Grid'5000 persistent artifacts were:
+## Evaluation and reproduction
 
-```text
-$HOME/arc-data/re_arc_5k_12x12_balanced/manifest.json
-$HOME/arc-data/re_arc_5k_12x12_balanced/examples.sqlite3
-$HOME/containers/mini-arc-v12-pytorch2.4.1-cuda12.1.sif
-```
-
-The SIF was approximately 3.0 GiB and successfully exposed PyTorch 2.4.1,
-CUDA 12.1, and 8 A100 GPUs on Sirius.
-
-`scripts/train_mini_arc_v12_oar.sh` is valid both as an OAR submission script
-and when executed directly inside an interactive OAR reservation. It copies the
-SIF, source, prepared dataset, and checkpoint into:
-
-```text
-/tmp/$USER/mini-arc-v12-$OAR_JOB_ID
-```
-
-It launches `torch.distributed.run` inside `apptainer exec --nv`, detects all
-visible GPUs, and mirrors results back to `$HOME` after each checkpoint. Do not
-change it to train directly from NFS-backed `$HOME`.
-
-### Full-refinement training behavior
-
-`scripts/train_mini_arc_v12_full_refinement_oar.sh` defaults to:
-
-```text
-MODEL_PROFILE=full-refinement
-BATCH_SIZE=16 per GPU (global batch 128 on 8 GPUs)
-TRAIN_STEPS=1000 per epoch
-VALIDATION_STEPS=100 per epoch
-MAX_EPOCHS=150 (150,000 steps)
-PATIENCE=150
-REFINEMENT_RATIO=0.25
-CHECKPOINT_EVERY_STEPS=0
-```
-
-With `CHECKPOINT_EVERY_STEPS=0`, it still saves after every epoch. A benchmark
-of the direct full model was about 128 seconds per 1,000-step epoch on 8 A100s,
-so 150 epochs were estimated around 5–6 hours. The actual refinement duration
-must be measured from its logs. It starts fresh if its directory has no
-`latest.pt`; otherwise it resumes automatically. Do not set `FORCE_RESTART=1`
-unless the user explicitly wants existing refinement checkpoints archived and
-a new run.
-
-### Evaluation commands
-
-The user intends to evaluate the direct-only model on a different machine. In
-an interactive allocation with one modern CUDA-capable GPU:
+Grid'5000 comparison:
 
 ```bash
-cd "$HOME/arc-agi/mini-arc"
-RESULTS_DIR="$HOME/arc-results/mini-arc-v12-full-paper-ttt15" \
-./scripts/eval_mini_arc_v12_full_oar.sh
+RESULTS_DIR="$HOME/arc-results/mini-arc-v12-full-refinement-ttt-comparison" \
+./scripts/eval_mini_arc_v12_ttt_comparison_oar.sh
 ```
 
-This defaults to `$HOME/arc-checkpoints/mini-arc-v12-full/best.pt`, TTT=15, and
-no refinement. It uses only `cuda:0`. A prior five-task/two-epoch smoke took
-about 30 seconds; the 114-task/15-epoch evaluation was conservatively estimated
-at 2–3 hours, but no final timing has been reported. The evaluation itself is
-not step-checkpointed, so leave enough walltime.
-
-After the refinement run finishes:
+ARM64/PCAD comparison:
 
 ```bash
-cd "$HOME/arc-agi/mini-arc"
-CHECKPOINT_PATH="$HOME/arc-checkpoints/mini-arc-v12-full-refinement/best.pt" \
-RESULTS_DIR="$HOME/arc-results/mini-arc-v12-full-refinement-paper" \
-REFINEMENT_ROUNDS=2 \
-./scripts/eval_mini_arc_v12_full_oar.sh
+SCRATCH=<scratch-path> PYTHON_BIN=<cuda-python> \
+RESULTS_DIR=<results-path> \
+./scripts/eval_mini_arc_v12_ttt_comparison_pcad.sh
 ```
 
-Inspect either result with:
+Use `MAX_TASKS=1 TTT_EPOCHS=1` for a smoke test. A complete run writes
+`baseline.json`, `augmentation.json`, `cheat.json`, and `comparison.json`.
+Preserve the raw reports: unlike the consolidated report, they include
+checkpoint/model identity, per-task predictions, TTT epoch counts, and vote
+details. They still do not record the pretrained checkpoint's global step or
+full training history.
 
-```bash
-jq '{
-  tasks_requested,
-  tasks_eligible,
-  skipped_tasks: (.tasks_skipped | length),
-  direct_metrics,
-  ttt_metrics,
-  refined_metrics
-}' "$HOME/arc-results/<RUN>/arc-agi-evaluation.json"
-```
+For direct-only paper-aligned evaluation, use
+`scripts/eval_mini_arc_v12_full_oar.sh`. Explicitly set
+`REFINEMENT_ROUNDS=0` for a direct-only checkpoint.
 
-`refined_metrics` is present only when `REFINEMENT_ROUNDS` is greater than
-zero. Do not use a Kepler-era K20M with the CUDA 12.1 / PyTorch 2.4.1 image;
-use an A100, L40S, H200, V100 if compatible with the image, or another supported
-modern NVIDIA GPU.
+## Authoritative files
 
-### Logs and interruption recovery
+- `README.md`: experiment narrative, results, limitations, short reproduction.
+- `results/comparison.json`: consolidated numerical result currently available
+  in the workspace.
+- `arc_prize/eval_arc_agi.py`: direct, TTT, augmentation, refinement, metrics.
+- `arc_prize/compare_ttt_runs.py`: three-run aggregation and task differences.
+- `models/data_augmentation_baseline/strong_augmentation.py`: strong policy.
+- `arc_prize/train_rearc.py`: v12 training and checkpoint semantics.
+- `TRAINING_MINI_ARC_V12.md`: detailed data, Apptainer, and cluster procedure.
+- `paper/mini-arc.tex`: local source copy of the original paper.
 
-OAR logs are written in the repository launch directory using `%jobid%`, for
-example:
+## Safety and maintenance boundaries
 
-```text
-mini-arc-v12-full-refinement-<jobid>.out
-mini-arc-v12-full-refinement-<jobid>.err
-```
-
-Useful checks are:
-
-```bash
-oarstat -fj <JOB_ID>
-tail -n 80 mini-arc-v12-full-refinement-<JOB_ID>.out
-tail -n 80 mini-arc-v12-full-refinement-<JOB_ID>.err
-ls -lh "$HOME/arc-checkpoints/mini-arc-v12-full-refinement"
-```
-
-The generic launcher stages source, SIF, prepared data, and checkpoints under
-`/tmp/$USER/mini-arc-v12-$OAR_JOB_ID`. On normal completion it mirrors results
-to `$HOME` and removes only that job-specific scratch directory. On termination
-it forwards SIGTERM to the trainer, which saves at the next batch boundary and
-syncs. Even if the final emergency save fails, the most recently completed
-epoch checkpoint remains persistent.
-
-## Verification and tests already completed
-
-The following passed inside the Apptainer image after the latest evaluator and
-refinement changes:
-
-- all five repository unit tests;
-- Python compilation and Bash syntax checks;
-- TTT construction counts of 6 items for three pairs and 48 for four pairs;
-- Score/Accuracy/Closeness aggregation;
-- a small model forward/backward through `tgt_embedding`, confirming it receives
-  gradients.
-
-On the actual cluster, still verify each new job's startup JSON, visible GPU
-count, model name, parameter count, checkpoint directory, and final persistent
-files. The refinement startup should report model name
-`mini-arc-v12-full-refinement`, parameter count 67,343,755, world size 8, and
-`refinement_ratio: 0.25`.
-
-## Boundaries
-
-- Do not commit generated datasets, SIF images, checkpoints, or `/tmp` files.
-- Do not delete existing checkpoints; use the trainer's archive behavior.
-- Keep the raw RE-ARC data outside the training source transfer when the
-  prepared artifact is available.
-- PyTorch-dependent tests require the Apptainer image or another environment
-  with PyTorch. The manifest tests run with Python standard library only.
-- Never run refinement on `mini-arc-v12-full/best.pt`; that checkpoint's
-  `tgt_embedding` is untrained and the evaluator intentionally rejects it.
-- Keep the 87-task old evaluation for historical reference, but use the new
-  114-task output for paper comparisons.
-- Grid'5000 usage-policy safety is a hard requirement: use `-t night`, inspect
-  `start_time` and `walltime`, and end before 09:00 local site time.
+- Do not commit generated datasets, SIF images, checkpoints, cluster logs, or
+  job scratch files.
+- Do not delete checkpoints or use destructive Git cleanup for generated
+  artifacts.
+- Preserve old notebooks, Modal paths, and editor code unless a task explicitly
+  targets them.
+- Keep baseline, augmentation, and cheat labels semantically distinct.
+- If publishing a new comparison, record checkpoint global step, dataset
+  fingerprint, seed, package versions, launcher environment overrides, and raw
+  reports so the absolute result can be audited.
