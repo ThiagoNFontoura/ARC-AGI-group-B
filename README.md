@@ -1,406 +1,248 @@
-# ARC-AGI Research Framework (Group B)
+# mini-arc-v12 — UFRGS class project
 
-An exploratory framework for solving the **Abstraction and Reasoning Corpus (ARC-AGI)** using Large Language Models (LLMs) and Vision-Language Models (VLMs). This repository investigates multiple reasoning strategies including text-based prompting, multimodal grid rasterization, test-time geometric augmentation (TTA), and few-shot exemplar synthesis.
+## Credits and project context
 
----
+This repository is based on the original **Mini-ARC** project created by
+**Paul Fletcher-Hill** for the ARC Prize. The original code is available at
+[pfletcherhill/mini-arc](https://github.com/pfletcherhill/mini-arc), and the
+paper is reproduced in [`paper/mini-arc.tex`](paper/mini-arc.tex) and published
+as [mini-arc.pdf](https://www.paulfletcherhill.com/mini-arc.pdf).
 
-## 📌 Table of Contents
+The work in this repository is a class project at the **Federal University of
+Rio Grande do Sul (UFRGS)**. It independently trains Mini-ARC-v12 on a reduced
+dataset and evaluates a specific intervention: stronger data augmentation
+during test-time training and inference.
 
-- [Overview](#overview)
-- [Key Components & Methodologies](#key-components--methodologies)
-  - [1. Textual Baseline Solver](#1-textual-baseline-solver)
-  - [2. Multimodal Image Solver](#2-multimodal-image-solver)
-  - [3. Test-Time Data Augmentation (TTA)](#3-test-time-data-augmentation-tta)
-  - [4. Exemplar Synthesis Pipeline](#4-exemplar-synthesis-pipeline)
-- [Pipeline Architectures](#-pipeline-architectures)
-  - [1. Data Augmentation Pipeline (Test-Time Augmentation)](#1-data-augmentation-pipeline-test-time-augmentation)
-  - [2. Exemplar Synthesis Pipeline (Synthetic Data Generation)](#2-exemplar-synthesis-pipeline-synthetic-data-generation)
-- [Repository Structure](#repository-structure)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation & Environment Setup](#installation--environment-setup)
-- [Usage Guide](#usage-guide)
-  - [Running the Text Baseline](#running-the-text-baseline)
-  - [Running the Image Multimodal Baseline](#running-the-image-multimodal-baseline)
-  - [Running Geometric Augmentation & Comparison](#running-geometric-augmentation--comparison)
-  - [Running Exemplar Synthesis](#running-exemplar-synthesis)
-- [Evaluation & Telemetry](#evaluation--telemetry)
-- [Project Context & Research Notes](#project-context--research-notes)
+Some experiments in this work used the PCAD infrastructure, [http://pcad.inf.ufrgs.br](http://pcad.inf.ufrgs.br), at INF/UFRGS.&#x20;
 
----
+## Research hypothesis
 
-## 🔍 Overview
+The original paper asks whether a small, ARC-specific visual Transformer can
+solve abstraction and reasoning puzzles without a language model, search, or
+program synthesis. Its proposed system combines three ingredients:
 
-The **ARC-AGI** benchmark tests inductive reasoning and general intelligence through visual/spatial grid transformations. This project (PCI - Group B) evaluates:
+1. a 67-million-parameter Transformer trained only on ARC-like grids;
+2. test-time training (TTT), which temporarily adapts a copy of the model to
+   the demonstrations of each test puzzle;
+3. refinement, which feeds a predicted output back to the adapted model for
+   two additional correction passes.
 
-1. **Text vs. Vision modalities**: Comparing model performance on raw 2D JSON matrix inputs versus rendered color images.
-2. **Inference-Time Ensembling**: Testing whether reversible geometric transformations (rotations, reflections, transpositions) improve prediction stability and accuracy.
-3. **Exemplar Synthesis (Data Augmentation)**: Generating verified synthetic demonstration pairs using a stronger reasoning model (`gemini-3.7-flash` / `gemini-3.5-flash-lite`) to enrich the context for downstream solvers.
+The hypothesis tested by this class project is narrower:
 
----
+> If ARC transformations are invariant to geometry, colour relabelling, and
+> demonstration order, exposing those equivalent views during TTT and
+> aggregating their predictions should improve performance over standard TTT
+> on the same Mini-ARC-v12 checkpoint.
 
-## 🚀 Key Components & Methodologies
+The comparison also includes a deliberately privileged `cheat` condition. It
+adds generated input/output pairs associated with each evaluation task and is
+used as an upper bound on the value of better task-specific data. It is not a
+fair generalization result. A subsequent standalone experiment evaluates
+examples generated and validated through the Google API. Because that condition
+uses an external language model to produce task-specific supervision, it is
+reported separately from the original controlled comparison.
 
-### 1. Textual Baseline Solver
-*Path: [`models/baseline_model/`](models/baseline_model/)*
+## Experimental setup
 
-- Directly consumes ARC task JSONs containing `train` demonstrations and `test` inputs.
-- Employs structured system prompts to solicit both task logic explanations and predicted test grids.
-- Supported backends: Google GenAI API (`gemma-4-31b-it`, `gemini-2.5-flash`, etc.).
-- Evaluates exact grid equality against known test labels.
+The three original comparison scenarios use the same
+`mini-arc-v12-full-refinement` checkpoint, the same 114 puzzles used by the
+paper, the first four demonstrations, the first test query, the same seed, and
+the same TTT hyperparameters. TTT runs for up to 15 epochs with a 99.5%
+adaptation-accuracy cutoff; every final prediction then receives two refinement
+rounds. The later Google API run preserves this evaluation configuration and
+adds only its accepted synthetic pairs to identity-view TTT.
 
-### 2. Multimodal Image Solver
-*Path: [`models/image_baseline_model/`](models/image_baseline_model/)*
+| Scenario | Task-specific training data and inference |
+|---|---|
+| **Baseline** | Original demonstrations and identity view only. |
+| **Data augmentation** | Up to 256 identity-anchored TTT items per task, sampled from all eight D4 symmetries, seeded colour permutations, and demonstration orders. At inference, transformed predictions are mapped back to canonical space and combined by hierarchical voting. |
+| **Cheat upper bound** | Baseline procedure plus compatible ARC-GEN pairs for the evaluation tasks, capped at 256 derived TTT items per task. |
+| **Google API examples** | Baseline procedure plus synthetic pairs generated and validated through the Google API, with identity-view inference and at most 256 derived TTT items per task. |
 
-- Rasterizes ARC numeric grids into high-contrast color PNG images with configurable cell sizes, grid lines, and palette mappings (`render_settings.py`).
-- Supports parallel batch rendering of task inputs and outputs.
-- Solves tasks through visual prompts sent to multimodal LLMs, comparing image-driven spatial reasoning against textual representations.
+The baseline used 2,952 derived TTT items in total. Data augmentation used
+24,512 items from 94,912 candidates before the per-task cap. The cheat run
+loaded 1,063 extra pairs, rejected 17 incompatible pairs, and used 27,818
+derived items from 2,308,860 candidates before capping. The Google API dataset
+contains 594 accepted synthetic pairs across 69 tasks; the other 45 tasks have
+no accepted synthetic pair and therefore use only their original
+demonstrations. Original demonstrations embedded in the `*-plus.json` files
+were removed before loading the extras, avoiding duplicate TTT supervision.
 
-### 3. Test-Time Data Augmentation (TTA)
-*Path: [`models/data_augmentation_baseline/`](models/data_augmentation_baseline/)*
+### Metrics from the paper
 
-- Augments ARC tasks at inference time across reversible geometric views:
-  - `identity`
-  - `flip_horizontal`
-  - `flip_vertical`
-  - `transpose`
-- For each view:
-  1. Forward-transforms train and test grids.
-  2. Queries the solver.
-  3. Inversely transforms the predicted test grids back to the canonical orientation.
-  4. Conducts exact-match consensus voting to pick the winning prediction.
-- Includes a `--run-both` comparison mode that executes both baseline (identity) and augmented phases, outputting comparative scorecards (accuracy deltas, sub-pixel accuracy, shape match rates, net tasks gained/lost).
+- **Score** is the number of puzzles whose complete output grid is exactly
+  correct. This is the primary measure of solved tasks.
+- **Accuracy** is cell accuracy over the centered, padded 12×12 output. Padding
+  makes this number optimistic for small grids, so it must not be read as
+  puzzle-solving accuracy.
+- **Closeness** is the number of puzzles with at least 95% cell accuracy.
 
-### 4. Exemplar Synthesis Pipeline
-*Path: [`models/example_gen/`](models/example_gen/)*
+## Results
 
-- Synthesizes additional supervised training examples for ARC tasks before solver execution without fine-tuning weights.
-- **Invariant Analysis** (`invariants.py`): Separately analyzes dimensions, color counts, estimated background color, connected components (4-way), and symmetries across original grids.
-- **Rule & Program Generation**: Prompts a reasoning LLM to infer the transformation rule, generate a Python `transform(grid)` function, and produce $N$ synthetic input/output training pairs.
-- **Restricted Sandbox Execution**: Dynamically compiles and executes the generated Python function against both original and synthetic examples.
-- **Strict Quality Gating**:
-  - Rejects synthetic sets violating identified invariants.
-  - If $>20\%$ of synthetic pairs fail functional validation, the entire synthetic set is rejected (`valid: false`).
-- Generates enriched `<task_id>-plus.json` files ready for downstream solver consumption.
+The comparison report selects the post-refinement prediction as the final
+stage, matching the paper's **TTT + Refined** setting.
 
----
+| Scenario | Score | Accuracy | Closeness |
+|---|---:|---:|---:|
+| **Baseline** | 5/114 (4.39%) | 89.80% | 40/114 (35.09%) |
+| **Data augmentation** | **11/114 (9.65%)** | **91.40%** | **44/114 (38.60%)** |
+| **Google API examples** | **13/114 (11.40%)** | **92.03%** | **55/114 (48.25%)** |
+| **Cheat upper bound** | 17/114 (14.91%) | 92.90% | 62/114 (54.39%) |
 
-## 🏗️ Pipeline Architectures
+Relative to the baseline, data augmentation gains 6 exact solutions, 1.60
+percentage points of cell accuracy, and 4 close solutions. It fixes 8 tasks
+that the baseline misses and loses 2 that the baseline solves, for a net gain
+of 6. This is a 2.2× increase in Score (11 versus 5) under the controlled
+comparison.
 
-### 1. Data Augmentation Pipeline (Test-Time Augmentation)
-*Reference documentation: [`simple_geometric_augmentation_strategy.md`](models/data_augmentation_baseline/simple_geometric_augmentation_strategy.md)*
+The Google API condition gains 8 exact solutions, 2.23 percentage points of
+cell accuracy, and 15 close solutions over the previously measured baseline.
+It also exceeds strong data augmentation by 2 exact solutions. This result was
+collected as a separate run; the baseline, data-augmentation, and cheat
+conditions were not re-executed. Its use of an external model and
+task-conditioned synthetic examples makes it a different intervention rather
+than a like-for-like Mini-ARC-only comparison.
 
-Language models serialize 2D grids line-by-line, creating directional reading biases that can obscure certain spatial rules. The data augmentation pipeline mitigates this by presenting the exact same task under multiple reversible geometric orientations, solving each view, mapping the candidate predictions back to the original orientation, and taking a consensus vote.
+The cheat condition gains 12 exact solutions over the baseline, but its 1,063
+task-associated extra examples give it information unavailable to the other
+runs. It is evidence that the model benefits from stronger task-specific
+supervision, not an unbiased estimate of performance on unseen ARC tasks.
 
-```
-                          +-------------------------+
-                          |   Original Task (ARC)   |
-                          |  Train & Test Grids (C) |
-                          +------------+------------+
-                                       |
-         +-----------------------------+-----------------------------+
-         |                             |                             |
-         v                             v                             v
-  +--------------+              +--------------+              +--------------+
-  |  Identity T0 |              | Flip Horiz T1|              |  Transpose T3| ... (Flip Vert T2)
-  +-------+------+              +-------+------+              +-------+------+
-          |                             |                             |
-    Transform Task                Transform Task                Transform Task
-     (All Grids)                   (All Grids)                   (All Grids)
-          |                             |                             |
-          v                             v                             v
-  +--------------+              +--------------+              +--------------+
-  |  LLM Solver  |              |  LLM Solver  |              |  LLM Solver  |
-  | (Greedy Dec) |              | (Greedy Dec) |              | (Greedy Dec) |
-  +-------+------+              +-------+------+              +-------+------+
-          |                             |                             |
-    Output y_aug_0                Output y_aug_1                Output y_aug_3
-          |                             |                             |
-  +-------v------+              +-------v------+              +-------v------+
-  | Apply T0^-1  |              | Apply T1^-1  |              | Apply T3^-1  |
-  +-------+------+              +-------+------+              +-------+------+
-          |                             |                             |
-   Normalized y_0                Normalized y_1                Normalized y_3
-          |                             |                             |
-          +-----------------------------+-----------------------------+
-                                        |
-                                        v
-                       +---------------------------------+
-                       | Exact-Match Majority Voting     |
-                       |  1. Highest exact vote count    |
-                       |  2. Tie-break: Identity view    |
-                       |  3. Tie-break: Transform order  |
-                       +----------------+----------------+
-                                        |
-                                        v
-                       +---------------------------------+
-                       | Final Winning Prediction (ŷ)    |
-                       | + Granular Telemetry Scorecard  |
-                       |   (Pixel/Shape/Palette Metrics) |
-                       +---------------------------------+
-```
+Refinement does not help every scenario:
 
-#### Pipeline Steps:
+| Scenario | TTT Score | TTT + Refined Score | Change |
+|---|---:|---:|---:|
+| Baseline | 5 | 5 | 0 |
+| Data augmentation | 9 | 11 | +2 |
+| Google API examples | 13 | 13 | 0 |
+| Cheat upper bound | 20 | 17 | -3 |
 
-1. **Consistent Full-Task Transformation**:
-   The transformation $T$ is applied consistently to **every** grid in the task: all training inputs, all training outputs, and all test inputs. Transforming only test inputs would corrupt the spatial relationships learned from demonstrations.
-   - Standard 4-view set: `identity`, `flip_horizontal`, `flip_vertical`, and `transpose` (all are involutions: $T^{-1} = T$).
-   - Can optionally extend to the full 8 symmetries of the dihedral group $D_8$.
-2. **Independent Greedy Inference**:
-   The LLM generates a greedy prediction for each transformed view independently.
-3. **Inverse Transformation ($T^{-1}$)**:
-   Every predicted output $y_{\text{aug}}$ is brought back into the original canonical orientation: $\hat{y} = T^{-1}(y_{\text{aug}})$.
-4. **Exact-Match Consensus Voting**:
-   Normalized grid predictions are grouped by byte-for-byte exact equality. The winner is determined by:
-   - Highest frequency of exact match;
-   - Preference for the `identity` view in the event of ties;
-   - Fixed transform order as deterministic final tie-breaker.
-5. **Comparative Telemetry (`--run-both`)**:
-   Compares the baseline (identity only) against the ensemble across overall accuracy, pixel accuracy, shape match rate, and per-transform winning rates.
+Thus, the augmentation result supports the project's intervention, while the
+cheat result also shows that refinement can overwrite correct TTT outputs. For
+the Google API condition, refinement leaves Score unchanged, decreases Accuracy
+slightly from 92.15% to 92.03%, and increases Closeness from 54 to 55 puzzles.
+A future evaluation should treat the number of refinement rounds as a
+validation choice rather than assuming that two rounds always improve Score.
 
----
+The full progression of the Google API run is:
 
-### 2. Exemplar Synthesis Pipeline (Synthetic Data Generation)
-*Reference documentation: [`abstract_example_generation.md`](models/example_gen/abstract_example_generation.md)*
+| Prediction stage | Score | Accuracy | Closeness |
+|---|---:|---:|---:|
+| Zero-shot | 0/114 (0.00%) | 83.92% | 16/114 (14.04%) |
+| TTT | 13/114 (11.40%) | 92.15% | 54/114 (47.37%) |
+| TTT + Refined | 13/114 (11.40%) | 92.03% | 55/114 (48.25%) |
 
-Rather than fine-tuning model parameters, Exemplar Synthesis uses a high-capacity reasoning model (`gemini-3.7-flash` with High Thinking) to infer the inductive rule behind an ARC task, formulate an executable Python `transform(grid)` function, and generate additional verified input/output training pairs to enrich the demonstration context for downstream solvers.
+The complete machine-readable result is in
+[`results/comparison.json`](results/comparison.json) for the original three-run
+comparison. 
 
-```
-                          +-------------------------+
-                          |   Original Task (ARC)   |
-                          | Train: input + output   |
-                          | Test: input ONLY        |
-                          +------------+------------+
-                                       |
-                                       v
-                     +-----------------------------------+
-                     |    Invariant Feature Extractor    |
-                     |  - Dimensions (H, W constant?)    |
-                     |  - Color sets & per-color counts  |
-                     |  - Background color detection     |
-                     |  - Connected components (4-way)   |
-                     |  - Horizontal & vertical symmetry |
-                     +-----------------+-----------------+
-                                       |
-                   Prompt with Demonstrations + Invariants
-                                       |
-                                       v
-                     +-----------------------------------+
-                     |     Reasoning LLM Synthesis      |
-                     | (Gemini 3.7 Flash, High Thinking) |
-                     | Produces structured JSON:         |
-                     |  - logic_explanation (r)          |
-                     |  - transformation_function (Py)   |
-                     |  - generated_train (N pairs)      |
-                     |  - predicted_test_outputs         |
-                     +-----------------+-----------------+
-                                       |
-                                       v
-                     +-----------------------------------+
-                     |  Restricted Sandbox Verification  |
-                     |   Executes transform(grid) on:    |
-                     |   - Original training examples    |
-                     |   - Generated synthetic pairs     |
-                     |   Checks: transform(inp) == out   |
-                     +-----------------+-----------------+
-                                       |
-                                       v
-                     +-----------------------------------+
-                     |     Multi-Tier Quality Gating     |
-                     |  1. Invariant consistency check   |
-                     |     (Any violation -> reject all) |
-                     |  2. Failure rate check:           |
-                     |     - If >20% fail -> reject all  |
-                     |     - If <=20% fail -> keep valid |
-                     +-----------------+-----------------+
-                                       |
-                     +-----------------+-----------------+
-                     |                                   |
-             [Pass Validation]                   [Fail Validation]
-                     |                                   |
-                     v                                   v
-          +---------------------+             +---------------------+
-          |  Write -plus.json   |             |  Flag valid: false  |
-          |  C+ = C ∪ G_valid   |             |  Audit in report    |
-          +----------+----------+             +----------+----------+
-                     |                                   |
-                     +-----------------+-----------------+
-                                       |
-                                       v
-                     +-----------------------------------+
-                     | Downstream Solvers (Text/Vision)  |
-                     | (Excludes pairs with valid: false)|
-                     +-----------------------------------+
-```
+## Why our baseline is below the paper's 17.5%
 
-#### Pipeline Steps:
+The paper reports **20/114 (17.5%)** for Mini-ARC-v12 with TTT and refinement;
+our independently trained baseline obtains **5/114 (4.39%)**. The two numbers
+use the same metric and evaluation subset, but they do not come from the same
+pretrained model or training corpus.
 
-1. **Context Construction & Information Containment**:
-   All original training demonstrations $(C)$ are provided to give complete task context. Test outputs are strictly omitted ($X_{\text{test}}$ only) to prevent leakage during synthesis.
-2. **Invariant Feature Extraction (`invariants.py`)**:
-   Analyzes train inputs and outputs separately for:
-   - Fixed heights and widths;
-   - Color palettes and exact counts per color;
-   - Dominant background color;
-   - Number of 4-connected components;
-   - Exact horizontal and vertical symmetries.
-   Properties found to be strictly constant are injected into the prompt as hard generation constraints.
-3. **Single-Call Structured Generation**:
-   The reasoning model is queried in a single call to generate:
-   - `logic_explanation`: Clear deduction of the grid transformation rule.
-   - `transformation_function`: Complete executable Python function `def transform(grid): ...`.
-   - `generated_train`: Exactly $N$ new synthetic input/output pairs ($G$).
-   - `predicted_test_outputs`: Model prediction for the withheld test input.
-4. **Sandboxed Program Execution**:
-   The Python function is compiled and executed in a restricted sandbox (no network/file/import access). The code runs `transform(inp)` on every original pair and every generated pair, requiring exact grid equality `transform(inp) == out`.
-5. **Multi-Tier Quality Gating**:
-   - *Invariant Gate*: If any generated pair violates a known constant property (e.g. dimensions, allowed colors), all generated examples are flagged `valid: false`.
-   - *20% Error Margin Gate*: If $>20\%$ of generated pairs fail functional execution, the entire synthetic batch is invalidated (`valid: false`). If $\le 20\%$ fail, only individual invalid examples are dropped.
-6. **Dataset Augmentation & Audit Reporting**:
-   - Saves augmented dataset as `output/example-gen/<task_id>-plus.json` containing $C^+ = C \cup G_{\text{valid}}$.
-   - Saves `output/example-gen/relatorio[ID].json` logging token usage, rule explanations, validation statuses, and error traces.
-   - Solvers automatically skip any training pairs flagged with `valid: false`.
+The largest documented reproduction gap is the training data:
 
----
+| | Original Mini-ARC-v12 | This project |
+|---|---:|---:|
+| Training examples | 830,648 | 186,556 |
+| Data sources | RE-ARC, BARC Heavy, ARC-HTML | Reduced RE-ARC only |
+| Training diversity | RE-ARC patterns plus BARC and ARC-HTML generators | 391 eligible RE-ARC generator families |
 
-## 📂 Repository Structure
+The local corpus is about 4.5× smaller and, more importantly, omits the BARC
+Heavy and ARC-HTML sources. The original paper trained on 4–8 A100 GPUs over
+multiple days for at least 150,000 steps with varying effective batch sizes.
+Our full-refinement launcher is configured for 150,000 steps on eight GPUs,
+but `comparison.json` does not record the selected checkpoint's global step or
+training history. A shorter realized run, different best-checkpoint selection,
+optimizer trajectory, data balancing, and random initialization may therefore
+also contribute, but the current report cannot quantify them.
 
-```text
-ARC-AGI-group-B/
-├── .env                                # API keys and model configurations (gitignored)
-├── HOWTORUN.md                         # Detailed step-by-step Portuguese execution guide
-├── README.md                           # Project documentation
-├── lab-notebook.md                     # Chronological development and experiment log
-├── requirements.txt                    # Project dependencies
-├── example-generation-pipeline.jpg     # Pipeline diagram
-│
-├── data/                               # ARC task datasets
-│   ├── 10_evaluation/                  # Evaluation sample sets
-│   ├── 20_training/                    # Training sample sets
-│   ├── evaluation/                     # ARC evaluation split
-│   └── training/                       # ARC training split
-│
-├── models/
-│   ├── baseline_model/                 # Text-based single-prompt solver
-│   ├── image_baseline_model/           # Image rendering + multimodal vision solver
-│   ├── data_augmentation_baseline/     # Test-time geometric augmentation & ensembling
-│   └── example_gen/                    # Exemplar synthesis, invariant extractor & validator
-│
-├── output/                             # Generated predictions, comparison reports & -plus.json
-└── presentations/                      # Project presentation slides (Quarto Reveal.js)
-```
+There are further implementation differences. This project rebuilds the data
+pipeline with family-balanced sampling and held-out examples per generator,
+whereas the paper describes a different mixed synthetic dataset and split.
+These choices improve traceability but change the training distribution.
+Finally, Accuracy includes easy-to-predict padding cells; Score is the safer
+number for comparing actual solutions.
 
----
+The lower absolute baseline does **not** invalidate the augmentation
+intervention. The intervention is evaluated as a paired comparison: checkpoint,
+tasks, seed, TTT schedule, query selection, and refinement count are held
+constant, while the augmentation policy changes. It supports the conclusion
+that strong augmentation improves this checkpoint on this 114-task subset. It
+does not establish that the repository reproduces the paper's absolute 17.5%,
+nor that the same gain will necessarily transfer to another checkpoint or the
+full ARC benchmark.
 
-## 🛠️ Getting Started
+## Model and implementation
 
-### Prerequisites
+The evaluated profile keeps the original Mini-ARC-v12 scale:
 
-- Python 3.10 or higher
-- A Google Gemini / AI Studio API key
+- 12×12 input and output grids;
+- four demonstration pairs and one query;
+- 2×2 patch embeddings;
+- 16 encoder layers, 16 attention heads, `d_model=512`, and `d_ff=3072`;
+- 67,343,755 parameters;
+- noisy partial targets on 25% of pretraining steps, enabling refinement.
 
-### Installation & Environment Setup
+`arc_prize/eval_arc_agi.py` creates and discards a separately adapted model copy
+for every puzzle, so evaluation never changes the base checkpoint. The direct
+`full` profile has an untrained refinement input and must be evaluated with
+`REFINEMENT_ROUNDS=0`; use the independently trained `full-refinement` profile
+for the experiment reported above.
 
-1. **Clone the repository and set up a virtual environment:**
+## Reproducibility
 
-   ```powershell
-   # Windows PowerShell
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   pip install -r requirements.txt
+The detailed cluster guide is in
+[`TRAINING_MINI_ARC_V12.md`](TRAINING_MINI_ARC_V12.md). The short workflow is:
+
+1. Prepare the reduced RE-ARC dataset:
+
+   ```bash
+   python3 -m arc_prize.rearc_manifest \
+     --source ../re-arc/re_arc_5k_12x12 \
+     --output data/re_arc_5k_12x12_balanced
    ```
 
-2. **Configure environment variables:**
+   The current source should retain 186,556 examples across 391 families and
+   produce `manifest.json` plus `examples.sqlite3`.
 
-   Create a `.env` file in the root directory:
+2. Build the reproducible CUDA/Apptainer image:
 
-   ```env
-   GEMMA_API_KEY=your_google_ai_studio_api_key_here
-
-   # Optional model configuration:
-   GEMMA_MODEL=gemma-4-31b-it
-   GEMMA_VALIDATOR_MODEL=gemma-4-31b-it
-   EXAMPLE_GEN_MODEL=gemini-3.7-flash
-   GEMMA_THINKING_LEVEL=high
+   ```bash
+   ./scripts/build_mini_arc_v12_container.sh \
+     ./mini-arc-v12-pytorch2.4.1-cuda12.1.sif
    ```
 
----
+3. Train or resume the full model with its refinement branch:
 
-## 💻 Usage Guide
+   ```bash
+   ./scripts/train_mini_arc_v12_full_refinement_oar.sh
+   ```
 
-### Running the Text Baseline
+   By default this runs 150 epochs of 1,000 steps, uses refinement targets on
+   25% of steps, and stores resumable `latest.pt` and validation-selected
+   `best.pt` checkpoints under
+   `$HOME/arc-checkpoints/mini-arc-v12-full-refinement`.
 
-Executes the model on all JSON tasks within a specified folder in `data/`:
+Experiments presented in this paper were carried out using the Grid'5000 testbed, supported by a scientific interest group hosted by Inria and including CNRS, RENATER and several Universities as well as other organizations (see [https://www.grid5000.fr](https://www.grid5000.fr)).
 
-```powershell
-python -m models.baseline_model.main 20_training
-```
-Output results are written to `output/<folder>_baseline_output.json`.
+4. Reproduce the three-scenario comparison on Grid'5000:
 
-### Running the Image Multimodal Baseline
+   ```bash
+   RESULTS_DIR="$HOME/arc-results/mini-arc-v12-full-refinement-ttt-comparison" \
+   ./scripts/eval_mini_arc_v12_ttt_comparison_oar.sh
+   ```
 
-Render tasks to visual images and evaluate:
+   On the ARM64 PCAD environment, use
+   `scripts/eval_mini_arc_v12_ttt_comparison_pcad.sh` and set `PYTHON_BIN` and
+   `SCRATCH` as required by that host. A quick smoke test can set
+   `MAX_TASKS=1 TTT_EPOCHS=1`.
 
-```powershell
-# Only render images to data/<folder>/images/ without calling the LLM:
-python -m models.image_baseline_model.main 20_training --render-only
-
-# Render images and run multimodal solver:
-python -m models.image_baseline_model.main 20_training --render-images
-
-# Run a single task with custom workers:
-python -m models.image_baseline_model.main training --task-file 007bbfb7.json --no-strong-validate
-```
-
-### Running Geometric Augmentation & Comparison
-
-Run test-time geometric ensembling, or compare directly against the unaugmented baseline:
-
-```powershell
-# Run augmentation only (default: identity, flip_h, flip_v, transpose):
-python -m models.data_augmentation_baseline.main 20_training
-
-# Run both Baseline and Augmented phases to generate comparison scorecards:
-python -m models.data_augmentation_baseline.main 20_training --run-both
-
-# Run with specific transformations:
-python -m models.data_augmentation_baseline.main 20_training --transforms identity transpose --run-both
-```
-
-### Running Exemplar Synthesis
-
-Generate new synthetic training demonstrations for tasks in a folder or for a single task:
-
-```powershell
-# Generate extra examples for an entire task folder:
-python -m models.example_gen.main data/20_training
-
-# Generate extra examples for a single task:
-python -m models.example_gen.main data/20_training/3aa6fb7a.json
-
-# Override the number of synthetic examples requested:
-python -m models.example_gen.main data/20_training --generated-examples 5
-```
-
-Enriched tasks are written to `output/example-gen/<task_name>-plus.json` alongside detailed execution and validation reports (`output/example-gen/relatorio[ID].json`).
-
----
-
-## 📊 Evaluation & Telemetry
-
-The runners collect rich telemetry across ARC-specific criteria:
-
-- **Exact Match Correctness**: Strict equality between predicted grid and ground-truth output.
-- **Pixel Accuracy**: Sub-pixel match percentage across test cases.
-- **Shape Match Rate**: Validation that output dimensions $(H \times W)$ match expected targets.
-- **Color Preservation & Palettes**: Detection of unseen or hallucinated color values.
-- **Ensemble Telemetry**: Vote distributions (unanimous, majority, plurality), per-view latency, and token consumption.
-
----
-
-## 📖 Project Context & Research Notes
-
-- **Mini-ARC Baseline Reference**: Early benchmarks evaluated a minimal transformer baseline (e.g., 4.5% with TTT on 114 ARC tasks) as a reference comparison against published literature (such as the Mini-ARC study).
-- For an experiment log and progress history, consult [`lab-notebook.md`](lab-notebook.md).
-- For slide decks and presentation materials, see [`presentations/slides_10-03/`](presentations/slides_10-03/).
-- For detailed execution notes in Portuguese, see [`HOWTORUN.md`](HOWTORUN.md).
+The evaluation writes `baseline.json`, `augmentation.json`, `cheat.json`, and
+the consolidated `comparison.json` beneath `RESULTS_DIR`. Keep the checkpoint,
+dataset fingerprint, seed, and all evaluation environment variables with any
+new result; `comparison.json` alone does not capture the full training
+provenance.
